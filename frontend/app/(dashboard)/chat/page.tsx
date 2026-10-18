@@ -132,7 +132,8 @@ export default function ChatPage() {
       </div>
 
       {/* Main Chat Stream Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative cyber-grid">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-cyan-600/5 rounded-full blur-3xl pointer-events-none" />
         {/* Messages List */}
         <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 flex flex-col">
           {messages.length === 0 && !loading ? (

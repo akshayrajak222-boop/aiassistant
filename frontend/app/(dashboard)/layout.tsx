@@ -65,14 +65,18 @@ export default function DashboardLayout({
         <div className="flex flex-col gap-6 p-4">
           {/* Logo & Assistant Identity */}
           <div className="flex items-center gap-3 px-2 py-1">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-md shadow-blue-500/20 text-white">
-              <Bot className="w-6 h-6" />
+            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/25 text-white animate-pulse-core">
+              <Bot className="w-5 h-5 relative z-10" />
+              <div className="absolute inset-0 rounded-xl border border-cyan-400/40 animate-ping-slow pointer-events-none" />
             </div>
             <div>
-              <h2 className="font-bold text-base text-white leading-tight">Jarvis</h2>
+              <div className="flex items-center gap-1.5">
+                <h2 className="font-bold text-base text-white tracking-wide">JARVIS</h2>
+                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">AI</span>
+              </div>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-[11px] text-emerald-400 font-medium">Online 24/7</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span className="text-[11px] text-emerald-400 font-mono font-medium">ONLINE 24/7</span>
               </div>
             </div>
           </div>
