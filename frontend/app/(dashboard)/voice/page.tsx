@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { useVoice } from "@/hooks/useVoice";
 import { JarvisOrb } from "@/components/voice/JarvisOrb";
-import { streamChatSSE } from "@/lib/api";
+import { streamChatSSE, apiRequest } from "@/lib/api";
+import { UserSettings } from "@/lib/types";
 
 interface VoiceMessageLog {
   id: string;
@@ -91,6 +92,18 @@ export default function VoicePage() {
     }
   };
 
+  const [voiceSettings, setVoiceSettings] = useState<{ voice_id?: string | null; provider?: "browser" | "elevenlabs" | "openai" }>({});
+
+  useEffect(() => {
+    apiRequest<UserSettings>("/api/settings")
+      .then((s) => {
+        if (s && s.voice_id) {
+          setVoiceSettings({ voice_id: s.voice_id, provider: "elevenlabs" });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const {
     state,
     transcript,
@@ -103,6 +116,8 @@ export default function VoicePage() {
   } = useVoice({
     onTranscript: handleVoiceTranscript,
     continuous,
+    voiceName: voiceSettings.voice_id || undefined,
+    provider: voiceSettings.provider || "browser",
   });
 
   const effectiveState = isAiProcessing ? "processing" : state;

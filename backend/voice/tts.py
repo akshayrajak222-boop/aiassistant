@@ -111,12 +111,17 @@ class ElevenLabsTTSProvider(TTSProvider):
         speed: float = 1.0,
     ) -> bytes:
         import httpx
-        voice_id = voice or "21m00Tcm4TlvDq8ikWAM"  # Default Rachel
+        voice_id = (
+            voice
+            or os.environ.get("ELEVENLABS_VOICE_ID")
+            or os.environ.get("TTS_VOICE")
+            or "21m00Tcm4TlvDq8ikWAM"
+        )
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
         headers = {"xi-api-key": self.api_key, "Content-Type": "application/json"}
         payload = {
             "text": text,
-            "model_id": "eleven_monolingual_v1",
+            "model_id": os.environ.get("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"),
             "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
         }
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -126,8 +131,15 @@ class ElevenLabsTTSProvider(TTSProvider):
 
     def get_available_voices(self) -> list[VoiceInfo]:
         return [
-            VoiceInfo(id="21m00Tcm4TlvDq8ikWAM", name="Rachel", language="en", provider="elevenlabs"),
+            VoiceInfo(id="21m00Tcm4TlvDq8ikWAM", name="Rachel (Default)", language="en", provider="elevenlabs"),
             VoiceInfo(id="AZnzlk1XvdvUeBnXmlld", name="Domi", language="en", provider="elevenlabs"),
+            VoiceInfo(id="EXAVITQu4vr4xnSDxMaL", name="Bella", language="en", provider="elevenlabs"),
+            VoiceInfo(id="ErXwobaYiN019PkySvjV", name="Antoni", language="en", provider="elevenlabs"),
+            VoiceInfo(id="MF3mGyEYCl7XYWbV9V6O", name="Elli", language="en", provider="elevenlabs"),
+            VoiceInfo(id="TxGEqnHWrfWFTfGW9XjX", name="Josh", language="en", provider="elevenlabs"),
+            VoiceInfo(id="VR6AewLTigWG4xSOukaG", name="Arnold", language="en", provider="elevenlabs"),
+            VoiceInfo(id="pNInz6obpgDQGcFmaJgB", name="Adam", language="en", provider="elevenlabs"),
+            VoiceInfo(id="yoZ06aMxZJJ28mfd3POQ", name="Sam", language="en", provider="elevenlabs"),
         ]
 
 
@@ -136,7 +148,15 @@ class TTSFactory:
     def create(provider_name: Optional[str] = None) -> TTSProvider:
         p = (provider_name or os.environ.get("TTS_PROVIDER", "browser")).lower()
         if p == "openai":
-            return OpenAITTSProvider()
+            try:
+                return OpenAITTSProvider()
+            except Exception as e:
+                logger.warning(f"OpenAI TTS init failed: {e}. Falling back to Browser TTS.")
+                return BrowserTTSProvider()
         elif p == "elevenlabs":
-            return ElevenLabsTTSProvider()
+            try:
+                return ElevenLabsTTSProvider()
+            except Exception as e:
+                logger.warning(f"ElevenLabs TTS init failed: {e}. Falling back to Browser TTS.")
+                return BrowserTTSProvider()
         return BrowserTTSProvider()

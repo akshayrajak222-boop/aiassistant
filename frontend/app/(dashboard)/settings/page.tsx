@@ -231,26 +231,46 @@ export default function SettingsPage() {
           )}
 
           {activeTab === "voice" && (
-            <div className="flex flex-col gap-4">
+            <form onSubmit={handleSaveSettings} className="flex flex-col gap-4">
               <h3 className="text-sm font-semibold text-slate-100 border-b border-slate-800 pb-2">
                 Voice & Speech Synthesis
               </h3>
               <p className="text-xs text-slate-400">
-                By default, the platform uses browser Web Speech APIs for zero-cost speech recognition and synthesis. You can also configure OpenAI Whisper and ElevenLabs in your server environment variables.
+                Configure speech recognition and ElevenLabs custom voices for Axy.
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl">
                   <h4 className="text-xs font-bold text-slate-200">Speech-to-Text (STT)</h4>
-                  <p className="text-[11px] text-slate-400 mt-1">Browser SpeechRecognition (Active)</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Browser SpeechRecognition (Zero latency)</p>
                 </div>
 
                 <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl">
                   <h4 className="text-xs font-bold text-slate-200">Text-to-Speech (TTS)</h4>
-                  <p className="text-[11px] text-slate-400 mt-1">Browser SpeechSynthesis (Active)</p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    {settings.voice_id ? "ElevenLabs Neural Voice (Active)" : "Browser SpeechSynthesis (Active)"}
+                  </p>
                 </div>
               </div>
-            </div>
+
+              <div className="flex flex-col gap-1.5 mt-2">
+                <Input
+                  label="ElevenLabs Voice ID (or Custom Cloned Voice ID)"
+                  value={settings.voice_id || ""}
+                  onChange={(e) => setSettings({ ...settings, voice_id: e.target.value })}
+                  placeholder="e.g. 21m00Tcm4TlvDq8ikWAM or your custom ElevenLabs cloned voice ID"
+                  helperText="Leave empty to use free Browser Web Speech. If provided, Axy will speak using this ElevenLabs voice."
+                />
+              </div>
+
+              <div className="p-3 bg-cyan-950/30 border border-cyan-800/40 rounded-xl text-xs text-cyan-300">
+                <span className="font-semibold">Tip:</span> To use ElevenLabs, make sure <code className="bg-slate-900 px-1 py-0.5 rounded text-cyan-200">ELEVENLABS_API_KEY</code> is set in your server <code className="bg-slate-900 px-1 py-0.5 rounded text-cyan-200">.env</code> file.
+              </div>
+
+              <Button type="submit" variant="primary" loading={saving} icon={<Save className="w-4 h-4" />} className="self-start mt-2">
+                Save Voice Configuration
+              </Button>
+            </form>
           )}
 
           {activeTab === "memory" && (
