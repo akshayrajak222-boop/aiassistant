@@ -77,7 +77,7 @@ export default function EmailPage() {
 
   const handleSummarize = async () => {
     if (!selectedMessage) return;
-    setSummary("Summarizing email with Jarvis...");
+    setSummary("Summarizing email with Axy...");
     try {
       setSummary(
         `[AI SUMMARY OF EMAIL]\nFrom: ${selectedMessage.from_email}\nSubject: ${selectedMessage.subject}\n\nKey Points:\n- Overview: ${selectedMessage.snippet}\n- Action Items: No urgent action required. Verified authentic.`

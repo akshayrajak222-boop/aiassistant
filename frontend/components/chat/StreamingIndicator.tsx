@@ -4,7 +4,7 @@ import React from "react";
 import { Bot } from "lucide-react";
 
 export const StreamingIndicator: React.FC<{ assistantName?: string }> = ({
-  assistantName = "Jarvis",
+  assistantName = "Axy",
 }) => {
   return (
     <div className="flex w-full gap-3 py-4 justify-start">

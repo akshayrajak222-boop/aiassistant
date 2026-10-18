@@ -34,7 +34,8 @@ class Settings(BaseSettings):
     )
 
     # ── Application ───────────────────────────────────────────────────────────
-    app_name: str = "AI Agent Platform"
+    app_name: str = "Axy AI Platform"
+    assistant_name: str = "Axy"
     app_version: str = "1.0.0"
     environment: Literal["development", "staging", "production"] = "development"
     debug: bool = False

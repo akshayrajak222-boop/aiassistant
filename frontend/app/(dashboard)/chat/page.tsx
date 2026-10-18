@@ -141,7 +141,7 @@ export default function ChatPage() {
               <div className="w-12 h-12 rounded-2xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
                 <Sparkles className="w-6 h-6" />
               </div>
-              <h2 className="text-xl font-bold text-slate-100">How can Jarvis assist you today?</h2>
+              <h2 className="text-xl font-bold text-slate-100">How can Axy assist you today?</h2>
               <p className="text-xs text-slate-400 leading-relaxed max-w-md">
                 Ask questions, inspect your Gmail inbox, draft client communications, reason through complex tasks, or speak with natural voice.
               </p>
@@ -165,9 +165,9 @@ export default function ChatPage() {
           ) : (
             <div className="max-w-3xl w-full mx-auto flex flex-col divide-y divide-slate-800/40">
               {messages.map((m) => (
-                <MessageBubble key={m.id} message={m} assistantName="Jarvis" />
+                <MessageBubble key={m.id} message={m} assistantName="Axy" />
               ))}
-              {isStreaming && <StreamingIndicator assistantName="Jarvis" />}
+              {isStreaming && <StreamingIndicator assistantName="Axy" />}
               <div ref={messagesEndRef} />
             </div>
           )}
@@ -187,7 +187,7 @@ export default function ChatPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask Jarvis anything or give a task..."
+                placeholder="Ask Axy anything or give a task..."
                 rows={1}
                 className="flex-1 bg-transparent border-0 text-slate-100 placeholder-slate-500 text-sm p-2 focus:ring-0 resize-none max-h-32 min-h-[38px] overflow-y-auto"
               />

@@ -54,7 +54,7 @@ async def get_settings(
         # Default settings if none created yet
         s = UserSettings(
             user_id=current_user.id,
-            assistant_name="Jarvis",
+            assistant_name="Axy",
             preferred_language="en",
             response_style="balanced",
             timezone="UTC",

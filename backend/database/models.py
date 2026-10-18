@@ -147,7 +147,7 @@ class UserSettings(TimestampMixin, Base):
         nullable=False,
         index=True,
     )
-    assistant_name: Mapped[str] = mapped_column(String(100), default="Aria", nullable=False)
+    assistant_name: Mapped[str] = mapped_column(String(100), default="Axy", nullable=False)
     system_instructions: Mapped[str | None] = mapped_column(Text)
     preferred_language: Mapped[str] = mapped_column(String(10), default="en", nullable=False)
     response_style: Mapped[str] = mapped_column(String(50), default="balanced", nullable=False)

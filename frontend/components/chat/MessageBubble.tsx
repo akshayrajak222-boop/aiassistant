@@ -13,7 +13,7 @@ interface MessageBubbleProps {
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
-  assistantName = "Jarvis",
+  assistantName = "Axy",
 }) => {
   const [copied, setCopied] = useState(false);
   const isUser = message.role === "user";

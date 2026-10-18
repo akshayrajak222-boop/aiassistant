@@ -70,13 +70,13 @@ export default function VoicePage() {
       }
 
       if (accumulatedResponse) {
-        const jarvisLog: VoiceMessageLog = {
-          id: "jarvis-" + Date.now(),
+        const axyLog: VoiceMessageLog = {
+          id: "axy-" + Date.now(),
           sender: "jarvis",
           text: accumulatedResponse,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
         };
-        setLogs((prev) => [...prev, jarvisLog]);
+        setLogs((prev) => [...prev, axyLog]);
 
         // Speak the assistant's reply through the speech synthesis engine
         speak(accumulatedResponse, () => {
@@ -136,7 +136,7 @@ export default function VoicePage() {
         <div className="flex items-center gap-4 text-xs font-mono">
           <div className="flex items-center gap-1.5 text-cyan-400">
             <Activity className="w-4 h-4 animate-pulse" />
-            <span className="font-semibold tracking-wider">JARVIS-CORE // V2.0</span>
+            <span className="font-semibold tracking-wider">AXY-CORE // V2.0</span>
           </div>
           <div className="hidden sm:flex items-center gap-1 text-slate-400">
             <Cpu className="w-3.5 h-3.5 text-blue-400" />
@@ -217,7 +217,7 @@ export default function VoicePage() {
               >
                 <span className="text-[10px] text-slate-500 flex-shrink-0 mt-0.5">[{log.timestamp}]</span>
                 <span className="font-bold flex-shrink-0">
-                  {log.sender === "user" ? "USER:" : "JARVIS:"}
+                  {log.sender === "user" ? "USER:" : "AXY:"}
                 </span>
                 <span className="text-slate-200 line-clamp-2">{log.text}</span>
               </div>

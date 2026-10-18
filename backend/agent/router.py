@@ -271,7 +271,7 @@ async def chat_stream(
     settings_res = await db.execute(stmt_settings)
     settings = settings_res.scalar_one_or_none()
 
-    assistant_name = settings.assistant_name if settings else "Jarvis"
+    assistant_name = settings.assistant_name if settings else "Axy"
     base_instructions = settings.system_instructions if settings and settings.system_instructions else (
         f"You are {assistant_name}, a highly intelligent, proactive, and concise personal AI assistant. "
         "Help the user accomplish their tasks efficiently."

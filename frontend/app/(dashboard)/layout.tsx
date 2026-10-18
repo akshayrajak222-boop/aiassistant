@@ -46,7 +46,7 @@ export default function DashboardLayout({
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white">
             <Bot className="w-5 h-5" />
           </div>
-          <span className="font-semibold text-sm">Jarvis</span>
+          <span className="font-semibold text-sm">Axy</span>
         </div>
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -71,7 +71,7 @@ export default function DashboardLayout({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h2 className="font-bold text-base text-white tracking-wide">JARVIS</h2>
+                <h2 className="font-bold text-base text-white tracking-wide">AXY</h2>
                 <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">AI</span>
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">

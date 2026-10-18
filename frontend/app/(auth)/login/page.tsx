@@ -51,8 +51,8 @@ export default function LoginPage() {
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white">
             <Bot className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white mt-2">Personal AI Agent Platform</h1>
-          <p className="text-sm text-slate-400">24/7 autonomous assistant inspired by Jarvis</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white mt-2">Axy AI Platform</h1>
+          <p className="text-sm text-slate-400">24/7 autonomous personal assistant</p>
         </div>
 
         {/* Card */}

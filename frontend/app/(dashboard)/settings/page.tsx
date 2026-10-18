@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/Input";
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"assistant" | "model" | "voice" | "memory" | "system">("assistant");
   const [settings, setSettings] = useState<UserSettings>({
-    assistant_name: "Jarvis",
+    assistant_name: "Axy",
     system_instructions: "",
     preferred_language: "en",
     response_style: "balanced",

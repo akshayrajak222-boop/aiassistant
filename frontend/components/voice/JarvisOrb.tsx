@@ -130,7 +130,7 @@ export const JarvisOrb: React.FC<JarvisOrbProps> = ({ state, onClick, disabled }
                 <div className="flex flex-col items-center gap-1">
                   <Sparkles className="w-10 h-10 text-cyan-400 transition-all duration-300 group-hover:text-cyan-300 animate-pulse" />
                   <span className="text-[10px] font-mono tracking-widest text-cyan-300 uppercase font-semibold">
-                    JARVIS
+                    AXY
                   </span>
                 </div>
               )}
@@ -189,7 +189,7 @@ export const JarvisOrb: React.FC<JarvisOrbProps> = ({ state, onClick, disabled }
               ? "SYNTHESIZING VOCAL RESPONSE"
               : isProcessing
               ? "NEURAL COMPUTATION"
-              : "JARVIS CORE ONLINE • READY"}
+              : "AXY CORE ONLINE • READY"}
           </span>
         </div>
         <p className="text-[11px] text-slate-500 tracking-wide mt-1">
