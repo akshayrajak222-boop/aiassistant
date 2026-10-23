@@ -107,7 +107,7 @@ class Settings(BaseSettings):
     log_format: Literal["json", "console"] = "json"
 
     # ── First-run admin account (optional) ───────────────────────────────────
-    initial_admin_email: EmailStr | None = None
+    initial_admin_email: str | None = None
     initial_admin_password: str | None = None
 
     # ─────────────────────────────────────────────────────────────────────────

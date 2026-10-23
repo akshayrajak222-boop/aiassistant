@@ -31,8 +31,9 @@ wheels/
 pip-wheel-metadata/
 share/python-wheels/
 .installed.cfg
-lib/
+# lib/
 lib64/
+!frontend/lib/
 MANIFEST
 .Python
 develop-eggs/
