@@ -37,7 +37,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-agentdb}
       POSTGRES_USER: ${POSTGRES_USER:-agentuser}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-axy_secure_pg_pass_2026}
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -64,7 +64,7 @@ services:
       redis-server
       --save 60 1
       --loglevel warning
-      --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+      --requirepass ${REDIS_PASSWORD:-axy_secure_redis_pass_2026}
       --maxmemory 256mb
       --maxmemory-policy allkeys-lru
     volumes:
