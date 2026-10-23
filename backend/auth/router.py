@@ -35,7 +35,7 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
-def _set_refresh_cookie(response: Response, token: str) -> None:
+def _set_refresh_cookie(response: Response, token: str):
     settings = get_settings()
     is_secure = settings.environment != "development"
     response.set_cookie(
@@ -49,7 +49,7 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
     )
 
 
-def _set_access_cookie(response: Response, token: str) -> None:
+def _set_access_cookie(response: Response, token: str):
     settings = get_settings()
     is_secure = settings.environment != "development"
     response.set_cookie(
@@ -70,7 +70,7 @@ async def _write_audit(
     event_type: str,
     ip_address: str | None,
     details: dict | None = None,
-) -> None:
+):
     event = AuditEvent(
         user_id=user_id,
         event_type=event_type,
@@ -135,13 +135,13 @@ async def login(
 
 # ── POST /api/auth/logout ─────────────────────────────────────────────────────
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def logout(
     response: Response,
     current_user: CurrentUser,
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> None:
+):
     """Clear auth cookies and record the logout event."""
     ip = request.client.host if request.client else None
 
