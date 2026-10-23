@@ -89,7 +89,7 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
-      target: production
+      target: runtime
     image: agent-backend:latest
     restart: unless-stopped
     env_file: ../.env
@@ -124,50 +124,12 @@ services:
         max-size: "20m"
         max-file: "5"
 
-  # ── Celery Worker ─────────────────────────────────────────────
-  worker:
-    image: agent-backend:latest
-    restart: unless-stopped
-    env_file: ../.env
-    command: >
-      celery -A app.worker.celery_app worker
-      --loglevel=${LOG_LEVEL:-info}
-      --concurrency=4
-      --max-tasks-per-child=1000
-      --without-gossip
-      --without-mingle
-    environment:
-      - PYTHONUNBUFFERED=1
-      - PYTHONDONTWRITEBYTECODE=1
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
-    networks:
-      - backend_net
-    volumes:
-      - backups:/backups
-    deploy:
-      resources:
-        limits:
-          memory: 768M
-        reservations:
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "20m"
-        max-file: "5"
-
   # ── Frontend (Next.js) ────────────────────────────────────────
   frontend:
     build:
       context: ../frontend
       dockerfile: Dockerfile
-      target: production
+      target: runner
     image: agent-frontend:latest
     restart: unless-stopped
     env_file: ../.env

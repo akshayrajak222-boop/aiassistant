@@ -40,8 +40,9 @@ COPY --from=builder /install /usr/local
 
 WORKDIR /app
 
-# Copy application source
-COPY --chown=appuser:appgroup . .
+# Copy application source into backend module directory
+COPY --chown=appuser:appgroup . /app/backend
+ENV PYTHONPATH=/app
 
 # Switch to non-root user
 USER appuser
@@ -53,4 +54,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
 # Entrypoint
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--loop", "uvloop", "--http", "httptools"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
