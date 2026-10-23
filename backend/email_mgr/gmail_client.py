@@ -16,7 +16,10 @@ import mimetypes
 import re
 from typing import Optional, TypedDict
 
-import bleach
+try:
+    import bleach
+except ImportError:
+    bleach = None
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -101,12 +104,15 @@ def _decode_body(data: str) -> str:
 
 def _sanitise_html(html: str) -> str:
     """Strip unsafe HTML while preserving safe structure."""
-    return bleach.clean(
-        html,
-        tags=_ALLOWED_HTML_TAGS,
-        attributes=_ALLOWED_HTML_ATTRS,
-        strip=True,
-    )
+    if bleach is not None:
+        return bleach.clean(
+            html,
+            tags=_ALLOWED_HTML_TAGS,
+            attributes=_ALLOWED_HTML_ATTRS,
+            strip=True,
+        )
+    import html as html_lib
+    return html_lib.escape(html)
 
 
 def _parse_message(raw: dict) -> EmailMessage:
