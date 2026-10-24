@@ -199,6 +199,13 @@ export default function VoicePage() {
         </div>
       )}
 
+      {errorMessage && (
+        <div className="max-w-md p-3 bg-rose-500/20 border border-rose-500/40 rounded-2xl flex items-center gap-2.5 text-rose-300 text-xs my-3 z-10 shadow-lg backdrop-blur-md animate-pulse">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
       {/* Main Center Area: 3D Holographic Face & Orb Visualizer */}
       <div className="flex flex-col items-center justify-center my-auto z-10 py-2">
         {/* Visual Mode Selector */}

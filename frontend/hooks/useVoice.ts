@@ -28,6 +28,8 @@ export function useVoice({
   const recognitionRef = useRef<any>(null);
   const isSpeakingRef = useRef<boolean>(false);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const currentTranscriptRef = useRef<string>("");
+  const dispatchedRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -43,7 +45,7 @@ export function useVoice({
     const recognition = new SpeechRecognition();
     recognition.continuous = continuous;
     recognition.interimResults = true;
-    recognition.lang = "en-US";
+    recognition.lang = (typeof navigator !== "undefined" && navigator.language) || "en-US";
 
     recognition.onstart = () => {
       // Don't listen to self speaking
@@ -53,20 +55,29 @@ export function useVoice({
       }
       setState("listening");
       setErrorMessage(null);
+      currentTranscriptRef.current = "";
+      dispatchedRef.current = false;
     };
 
     recognition.onresult = (event: any) => {
       let finalTranscript = "";
+      let interimTranscript = "";
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           finalTranscript += event.results[i][0].transcript;
         } else {
-          setTranscript(event.results[i][0].transcript);
+          interimTranscript += event.results[i][0].transcript;
         }
       }
 
-      if (finalTranscript) {
-        setTranscript(finalTranscript);
+      const activeText = finalTranscript || interimTranscript;
+      if (activeText) {
+        setTranscript(activeText);
+        currentTranscriptRef.current = activeText;
+      }
+
+      if (finalTranscript && !dispatchedRef.current) {
+        dispatchedRef.current = true;
         setState("processing");
         if (onTranscript) {
           onTranscript(finalTranscript);
@@ -75,7 +86,11 @@ export function useVoice({
     };
 
     recognition.onerror = (event: any) => {
-      if (event.error !== "no-speech") {
+      console.warn("Speech recognition error:", event.error);
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setState("error");
+        setErrorMessage("Microphone access is blocked. Please click the site icon in your browser address bar and set Microphone to 'Allow'.");
+      } else if (event.error !== "no-speech") {
         setState("error");
         setErrorMessage(`Microphone error: ${event.error}`);
       } else {
@@ -84,7 +99,11 @@ export function useVoice({
     };
 
     recognition.onend = () => {
-      if (state === "listening") {
+      if (currentTranscriptRef.current && !dispatchedRef.current) {
+        dispatchedRef.current = true;
+        setState("processing");
+        onTranscript?.(currentTranscriptRef.current);
+      } else if (state === "listening") {
         setState("idle");
       }
     };
@@ -98,13 +117,30 @@ export function useVoice({
     };
   }, [continuous, onTranscript]);
 
-  function startListening() {
+  async function startListening() {
     if (isSpeakingRef.current) {
       interruptSpeech();
     }
+    setErrorMessage(null);
+
+    // Request audio stream from browser to trigger permission prompt if not yet granted
+    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((t) => t.stop());
+      } catch (err: any) {
+        console.warn("Microphone permission error:", err);
+        setState("error");
+        setErrorMessage("Microphone access is blocked. Please allow microphone permission in your browser address bar.");
+        return;
+      }
+    }
+
     if (recognitionRef.current) {
       try {
         setTranscript("");
+        currentTranscriptRef.current = "";
+        dispatchedRef.current = false;
         recognitionRef.current.start();
       } catch (err: any) {
         console.warn("Recognition already started or error:", err);
@@ -118,7 +154,13 @@ export function useVoice({
         recognitionRef.current.stop();
       } catch {}
     }
-    setState("idle");
+    if (currentTranscriptRef.current && !dispatchedRef.current) {
+      dispatchedRef.current = true;
+      setState("processing");
+      onTranscript?.(currentTranscriptRef.current);
+    } else {
+      setState("idle");
+    }
   }
 
   function fallbackBrowserSpeech(text: string, onEnd?: () => void) {
