@@ -4,11 +4,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 {
-    email {$CADDY_EMAIL:admin@localhost}
+    email akshayrajak222@gmail.com
     admin off
 }
 
-:80 {
+axy.hateitt.com, :80 {
     encode gzip zstd
 
     # Security & Feature headers
