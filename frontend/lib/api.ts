@@ -48,7 +48,13 @@ export async function apiRequest<T = any>(
     let errorDetail = "API request failed";
     try {
       const errJson = await response.json();
-      errorDetail = errJson.detail || errJson.message || errorDetail;
+      if (typeof errJson.detail === "string") {
+        errorDetail = errJson.detail;
+      } else if (Array.isArray(errJson.detail)) {
+        errorDetail = errJson.detail.map((e: any) => e.msg || JSON.stringify(e)).join(", ");
+      } else if (errJson.message) {
+        errorDetail = errJson.message;
+      }
     } catch {
       // not json
     }
