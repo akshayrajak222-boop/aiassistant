@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     # ── AI Providers ──────────────────────────────────────────────────────────
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
     anthropic_api_key: str | None = Field(default=None, description="Anthropic API key")
+    ai_model: str | None = None
     default_ai_provider: Literal["openai", "anthropic"] = "anthropic"
     default_model_openai: str = "gpt-4o"
     default_model_anthropic: str = "claude-3-5-sonnet-20241022"

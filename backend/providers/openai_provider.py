@@ -154,7 +154,13 @@ class OpenAIProvider(AIProvider):
 
         http_client = httpx.AsyncClient(verify=ctx, timeout=60.0)
         self._client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url, http_client=http_client)
-        self._default_model = os.environ.get("OPENAI_MODEL", self._DEFAULT_MODEL)
+        model_from_env = os.environ.get("OPENAI_MODEL") or os.environ.get("AI_MODEL")
+        if not model_from_env or model_from_env in ("gpt-4o", "gemini-3.5-flash"):
+            if base_url and "googleapis.com" in base_url:
+                model_from_env = "gemini-1.5-flash"
+            else:
+                model_from_env = model_from_env or self._DEFAULT_MODEL
+        self._default_model = model_from_env
         self._embed_model = os.environ.get("OPENAI_EMBED_MODEL", self._DEFAULT_EMBED_MODEL)
         self._max_tokens = int(os.environ.get("OPENAI_MAX_TOKENS", str(self._DEFAULT_MAX_TOKENS)))
 
@@ -186,6 +192,9 @@ class OpenAIProvider(AIProvider):
     ) -> AsyncIterator[str]:
         """Stream chat completion via OpenAI SSE."""
         resolved_model = model or self._default_model
+        if self._base_url and "googleapis.com" in self._base_url:
+            if resolved_model in ("gpt-4o", "gemini-3.5-flash", None):
+                resolved_model = "gemini-1.5-flash"
         converted = _convert_messages(messages)
         openai_tools = _convert_tools(tools) if tools else openai.NOT_GIVEN  # type: ignore[attr-defined]
 
@@ -253,6 +262,9 @@ class OpenAIProvider(AIProvider):
     ) -> str:
         """Non-streaming chat completion."""
         resolved_model = model or self._default_model
+        if self._base_url and "googleapis.com" in self._base_url:
+            if resolved_model in ("gpt-4o", "gemini-3.5-flash", None):
+                resolved_model = "gemini-1.5-flash"
         converted = _convert_messages(messages)
         openai_tools = _convert_tools(tools) if tools else openai.NOT_GIVEN  # type: ignore[attr-defined]
 

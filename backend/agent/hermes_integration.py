@@ -84,10 +84,14 @@ class HermesAgentService:
         """Execute task using NousResearch Hermes AIAgent."""
         from run_agent import AIAgent  # type: ignore
 
-        model = model_override or (
+        model = model_override or self.settings.ai_model or (
             self.settings.default_model_anthropic
             if self.settings.default_ai_provider == "anthropic"
-            else self.settings.default_model_openai
+            else (
+                "gemini-1.5-flash"
+                if os.environ.get("OPENAI_BASE_URL") and "googleapis.com" in os.environ.get("OPENAI_BASE_URL", "")
+                else self.settings.default_model_openai
+            )
         )
 
         agent = AIAgent(
