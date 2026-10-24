@@ -43,8 +43,8 @@ export default function DashboardLayout({
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white">
-            <Bot className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden border border-cyan-400/50 shadow-md flex items-center justify-center bg-slate-950">
+            <img src="/axy-avatar.png" alt="Axy" className="w-full h-full object-cover" />
           </div>
           <span className="font-semibold text-sm">Axy</span>
         </div>
@@ -65,9 +65,9 @@ export default function DashboardLayout({
         <div className="flex flex-col gap-6 p-4">
           {/* Logo & Assistant Identity */}
           <div className="flex items-center gap-3 px-2 py-1">
-            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/25 text-white animate-pulse-core">
-              <Bot className="w-5 h-5 relative z-10" />
-              <div className="absolute inset-0 rounded-xl border border-cyan-400/40 animate-ping-slow pointer-events-none" />
+            <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-cyan-400/50 shadow-lg shadow-cyan-500/25 flex items-center justify-center bg-slate-950">
+              <img src="/axy-avatar.png" alt="Axy" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 rounded-xl border border-cyan-400/30 animate-pulse pointer-events-none" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">

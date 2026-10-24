@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useVoice } from "@/hooks/useVoice";
 import { JarvisOrb } from "@/components/voice/JarvisOrb";
+import { AxyFace } from "@/components/voice/AxyFace";
 import { streamChatSSE, apiRequest } from "@/lib/api";
 import { UserSettings } from "@/lib/types";
 
@@ -26,6 +27,7 @@ interface VoiceMessageLog {
 }
 
 export default function VoicePage() {
+  const [visualMode, setVisualMode] = useState<"face" | "orb">("face");
   const [continuous, setContinuous] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [logs, setLogs] = useState<VoiceMessageLog[]>([]);
@@ -197,9 +199,37 @@ export default function VoicePage() {
         </div>
       )}
 
-      {/* Main Center Area: Holographic Jarvis Orb Visualizer */}
+      {/* Main Center Area: 3D Holographic Face & Orb Visualizer */}
       <div className="flex flex-col items-center justify-center my-auto z-10 py-2">
-        <JarvisOrb state={effectiveState} onClick={toggleVoice} disabled={!isSupported} />
+        {/* Visual Mode Selector */}
+        <div className="flex items-center gap-1 p-1 bg-slate-900/80 border border-slate-800 rounded-xl mb-3 shadow-md z-10 text-xs">
+          <button
+            onClick={() => setVisualMode("face")}
+            className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              visualMode === "face"
+                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            3D Avatar Face
+          </button>
+          <button
+            onClick={() => setVisualMode("orb")}
+            className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              visualMode === "orb"
+                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Holo-Orb
+          </button>
+        </div>
+
+        {visualMode === "face" ? (
+          <AxyFace state={effectiveState} onClick={toggleVoice} disabled={!isSupported} />
+        ) : (
+          <JarvisOrb state={effectiveState} onClick={toggleVoice} disabled={!isSupported} />
+        )}
 
         {/* Live Speech Recognition Bubble */}
         <div className="max-w-lg w-full min-h-[64px] bg-slate-900/80 backdrop-blur-md border border-cyan-500/30 rounded-2xl p-4 text-center flex items-center justify-center shadow-xl shadow-cyan-950/20 mt-3">
