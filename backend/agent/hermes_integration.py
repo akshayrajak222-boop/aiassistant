@@ -88,7 +88,7 @@ class HermesAgentService:
             self.settings.default_model_anthropic
             if self.settings.default_ai_provider == "anthropic"
             else (
-                "gemini-1.5-flash"
+                "gemini-3.5-flash"
                 if os.environ.get("OPENAI_BASE_URL") and "googleapis.com" in os.environ.get("OPENAI_BASE_URL", "")
                 else self.settings.default_model_openai
             )
