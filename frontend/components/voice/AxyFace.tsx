@@ -177,17 +177,30 @@ export const AxyFace: React.FC<AxyFaceProps> = ({ state, onClick, disabled }) =>
       const delta = Math.min(0.1, (now - lastTime) / 1000);
       lastTime = now;
 
-      // Handle speech rhythm dynamics
+      // Handle speech rhythm dynamics with organic vocal breathing
       if (isSpeaking) {
         speechTimer += delta;
-        if (speechTimer > 0.08) {
+        // Natural syllable transition cadence (~90-130ms phoneme timing)
+        if (speechTimer > 0.09) {
           speechTimer = 0;
-          targetSpeechVal = 0.3 + Math.random() * 0.7; // energetic vocal pulse
+          const rand = Math.random();
+          // Modulate between explosive open vowel syllables, mid tones, and subtle pauses
+          if (rand > 0.82) {
+            targetSpeechVal = 0.22; // brief consonant dip
+          } else if (rand > 0.38) {
+            targetSpeechVal = 0.75 + Math.random() * 0.25; // vocal peak (0.75 - 1.0)
+          } else {
+            targetSpeechVal = 0.45 + Math.random() * 0.25; // mid tone
+          }
         }
-        speechPulse.current += (targetSpeechVal - speechPulse.current) * Math.min(1, delta * 18);
+        // Asymmetric attack/release for organic breathing (fast burst outward, smooth relaxation)
+        const lerpRate = targetSpeechVal > speechPulse.current ? 16 : 9;
+        speechPulse.current += (targetSpeechVal - speechPulse.current) * Math.min(1, delta * lerpRate);
       } else if (isListening) {
-        speechPulse.current = 0.15 + Math.sin(now / 180) * 0.08;
+        // Attentive breathing rhythm when listening
+        speechPulse.current = 0.12 + Math.sin(now / 220) * 0.08;
       } else {
+        // Smoothly settle back to rest when idle
         speechPulse.current = Math.max(0, speechPulse.current - delta * 4);
       }
 
@@ -214,12 +227,16 @@ export const AxyFace: React.FC<AxyFaceProps> = ({ state, onClick, disabled }) =>
       const height = canvas.height;
       const cx = width / 2;
       const cy = height / 2;
-      const baseRadius = width * 0.23;
+
+      // Full Volumetric Pulsing: The ENTIRE 3D Shape expands & shrinks with voice
+      const baseRadius = width * 0.22;
+      const vocalExpansion = speechPulse.current * 0.28; // Up to 28% dynamic 3D expansion
+      const currentRadius = baseRadius * (1.0 + vocalExpansion);
 
       // Clear canvas with deep dark transparent backing
       ctx.clearRect(0, 0, width, height);
 
-      // 3D Point Projection Helper
+      // 3D Point Projection Helper using dynamic breathing radius
       const project = (x: number, y: number, z: number, scaleFactor = 1) => {
         // Rotate Y (Yaw)
         let x1 = x * cosY + z * sinY;
@@ -237,15 +254,15 @@ export const AxyFace: React.FC<AxyFaceProps> = ({ state, onClick, disabled }) =>
         let z3 = z2;
 
         const fov = 650;
-        const pScale = fov / (fov + z3 * baseRadius * scaleFactor);
-        const px = cx + x3 * baseRadius * scaleFactor * pScale;
-        const py = cy + y3 * baseRadius * scaleFactor * pScale;
+        const pScale = fov / (fov + z3 * currentRadius * scaleFactor);
+        const px = cx + x3 * currentRadius * scaleFactor * pScale;
+        const py = cy + y3 * currentRadius * scaleFactor * pScale;
         return { px, py, pz: z3, pScale };
       };
 
       // ── Step 1: Ambient Background Core Aura ──────────────────────────────
-      const auraPulse = 1 + speechPulse.current * 0.35;
-      const auraGrad = ctx.createRadialGradient(cx, cy, 10, cx, cy, baseRadius * 1.9 * auraPulse);
+      const auraPulse = 1 + speechPulse.current * 0.45;
+      const auraGrad = ctx.createRadialGradient(cx, cy, 10, cx, cy, currentRadius * 1.95 * auraPulse);
 
       if (isListening) {
         auraGrad.addColorStop(0, "rgba(251, 113, 133, 0.4)");
@@ -373,7 +390,7 @@ export const AxyFace: React.FC<AxyFaceProps> = ({ state, onClick, disabled }) =>
       });
 
       // ── Step 6: Blazing Central Fusion Star / Nucleus ─────────────────────
-      const coreSize = baseRadius * (0.28 + speechPulse.current * 0.12);
+      const coreSize = currentRadius * (0.26 + speechPulse.current * 0.18);
       const starGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, coreSize);
 
       starGrad.addColorStop(0, "#ffffff");
