@@ -13,13 +13,13 @@ const nextConfig = {
     return config;
   },
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
         hostname: "**",
       },
     ],
-    formats: ["image/avif", "image/webp"],
   },
   async headers() {
     return [

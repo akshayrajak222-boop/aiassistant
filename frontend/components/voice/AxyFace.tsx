@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import Image from "next/image";
 import { Sparkles, Mic, Volume2, Cpu, Eye, Radio, Zap } from "lucide-react";
 import { VoiceState } from "@/hooks/useVoice";
 
@@ -156,12 +155,16 @@ export const AxyFace: React.FC<AxyFaceProps> = ({ state, onClick, disabled }) =>
         >
           {/* Hologram Base Image */}
           <div className="relative w-full h-full">
-            <Image
+            <img
               src="/axy-hologram.jpg"
               alt="Axy 3D Hologram AI"
-              fill
-              priority
-              className={`object-cover object-center transition-all duration-500 ${
+              onError={(e) => {
+                const target = e.currentTarget;
+                if (!target.src.endsWith("/axy-avatar.png")) {
+                  target.src = "/axy-avatar.png";
+                }
+              }}
+              className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-500 pointer-events-none ${
                 isSpeaking
                   ? "scale-103 brightness-110 drop-shadow-[0_0_20px_rgba(52,211,153,0.3)]"
                   : isListening
