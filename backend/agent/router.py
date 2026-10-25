@@ -280,7 +280,10 @@ async def chat_stream(
     recent_texts = [m.content for m in history_records[-5:]]
     memory_context = await memory_service.get_relevant_context(db, current_user.id, recent_texts)
 
-    full_system_prompt = f"{base_instructions}\n\n{memory_context}"
+    full_system_prompt = (
+        f"{base_instructions}\n\n{memory_context}\n\n"
+        "DIRECTIVE: Be concise, clear, and direct. When conversing, reply in 1 to 3 natural sentences without unnecessary preamble or markdown formatting."
+    )
 
     task_id = str(uuid.uuid4())
     user_id = current_user.id

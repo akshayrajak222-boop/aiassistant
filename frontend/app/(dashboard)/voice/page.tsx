@@ -73,16 +73,17 @@ export default function VoicePage() {
       }
 
       if (accumulatedResponse) {
+        const cleanReply = accumulatedResponse.replace(/[*#_`~\[\]]/g, "").trim();
         const axyLog: VoiceMessageLog = {
           id: "axy-" + Date.now(),
           sender: "jarvis",
-          text: accumulatedResponse,
+          text: cleanReply,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
         };
         setLogs((prev) => [...prev, axyLog]);
 
         // Speak the assistant's reply through the speech synthesis engine
-        speak(accumulatedResponse, () => {
+        speak(cleanReply, () => {
           setIsAiProcessing(false);
         });
       } else {
@@ -94,16 +95,22 @@ export default function VoicePage() {
     }
   };
 
-  const [voiceSettings, setVoiceSettings] = useState<{ voice_id?: string | null; provider?: "browser" | "elevenlabs" | "openai" }>({});
+  const [voiceSettings, setVoiceSettings] = useState<{ voice_id?: string | null; provider?: "browser" | "elevenlabs" | "openai" }>({
+    provider: "browser",
+  });
 
   useEffect(() => {
     apiRequest<UserSettings>("/api/settings")
       .then((s) => {
-        if (s && s.voice_id) {
-          setVoiceSettings({ voice_id: s.voice_id, provider: "elevenlabs" });
+        if (s && s.voice_id && s.voice_id !== "21m00Tcm4TlvDq8ikWAM") {
+          setVoiceSettings({ voice_id: s.voice_id, provider: "browser" });
+        } else {
+          setVoiceSettings({ provider: "browser" });
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setVoiceSettings({ provider: "browser" });
+      });
   }, []);
 
   const {

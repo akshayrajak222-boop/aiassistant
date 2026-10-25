@@ -41,8 +41,8 @@ _RETRYABLE = (
 
 _retry_policy = dict(
     retry=retry_if_exception_type(_RETRYABLE),
-    wait=wait_exponential(multiplier=1, min=2, max=60),
-    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=0.5, min=0.5, max=3),
+    stop=stop_after_attempt(3),
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
@@ -155,9 +155,9 @@ class OpenAIProvider(AIProvider):
         http_client = httpx.AsyncClient(verify=ctx, timeout=60.0)
         self._client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url, http_client=http_client)
         model_from_env = os.environ.get("OPENAI_MODEL") or os.environ.get("AI_MODEL")
-        if not model_from_env or model_from_env in ("gpt-4o", "gemini-1.5-flash"):
+        if not model_from_env or model_from_env in ("gpt-4o", "gemini-1.5-flash", "gemini-3.5-flash"):
             if base_url and "googleapis.com" in base_url:
-                model_from_env = "gemini-3.5-flash"
+                model_from_env = "gemini-3.5-flash-lite"
             else:
                 model_from_env = model_from_env or self._DEFAULT_MODEL
         self._default_model = model_from_env
@@ -193,8 +193,8 @@ class OpenAIProvider(AIProvider):
         """Stream chat completion via OpenAI SSE."""
         resolved_model = model or self._default_model
         if self._base_url and "googleapis.com" in self._base_url:
-            if resolved_model in ("gpt-4o", "gemini-1.5-flash", None):
-                resolved_model = "gemini-3.5-flash"
+            if resolved_model in ("gpt-4o", "gemini-1.5-flash", "gemini-3.5-flash", None):
+                resolved_model = "gemini-3.5-flash-lite"
         converted = _convert_messages(messages)
         openai_tools = _convert_tools(tools) if tools else openai.NOT_GIVEN  # type: ignore[attr-defined]
 
@@ -263,8 +263,8 @@ class OpenAIProvider(AIProvider):
         """Non-streaming chat completion."""
         resolved_model = model or self._default_model
         if self._base_url and "googleapis.com" in self._base_url:
-            if resolved_model in ("gpt-4o", "gemini-1.5-flash", None):
-                resolved_model = "gemini-3.5-flash"
+            if resolved_model in ("gpt-4o", "gemini-1.5-flash", "gemini-3.5-flash", None):
+                resolved_model = "gemini-3.5-flash-lite"
         converted = _convert_messages(messages)
         openai_tools = _convert_tools(tools) if tools else openai.NOT_GIVEN  # type: ignore[attr-defined]
 
