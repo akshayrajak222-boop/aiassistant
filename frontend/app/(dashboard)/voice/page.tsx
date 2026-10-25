@@ -144,8 +144,8 @@ export default function VoicePage() {
       <div className="absolute inset-0 hologram-scanlines z-0 pointer-events-none" />
 
       {/* Ambient Lighting Orbs */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-3xl pointer-events-none animate-pulse-slow" />
-      <div className="absolute -bottom-20 -left-20 w-[350px] h-[350px] bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-amber-500/15 rounded-full blur-3xl pointer-events-none animate-pulse-slow" />
+      <div className="absolute -bottom-20 -left-20 w-[350px] h-[350px] bg-orange-600/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Top Futuristic HUD Telemetry Bar */}
       <div className="w-full max-w-4xl flex items-center justify-between border-b border-cyan-500/20 bg-slate-900/60 backdrop-blur-md px-5 py-3 rounded-2xl z-10 shadow-lg">
@@ -214,17 +214,17 @@ export default function VoicePage() {
             onClick={() => setVisualMode("face")}
             className={`px-3 py-1 rounded-lg font-medium transition-all ${
               visualMode === "face"
-                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            3D Hologram (Lip-Sync)
+            3D Quantum Reactor
           </button>
           <button
             onClick={() => setVisualMode("orb")}
             className={`px-3 py-1 rounded-lg font-medium transition-all ${
               visualMode === "orb"
-                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >

@@ -43,8 +43,9 @@ export default function DashboardLayout({
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 z-50">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg overflow-hidden border border-cyan-400/50 shadow-md flex items-center justify-center bg-slate-950">
-            <img src="/axy-avatar.png" alt="Axy" className="w-full h-full object-cover" />
+          <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-amber-500/50 shadow-md flex items-center justify-center bg-slate-950">
+            <div className="absolute inset-0.5 rounded-full border border-dashed border-amber-400/60 animate-spin-cw" style={{ animationDuration: "12s" }} />
+            <div className="w-3 h-3 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-400 to-white shadow-[0_0_8px_#f59e0b]" />
           </div>
           <span className="font-semibold text-sm">Axy</span>
         </div>
@@ -65,14 +66,15 @@ export default function DashboardLayout({
         <div className="flex flex-col gap-6 p-4">
           {/* Logo & Assistant Identity */}
           <div className="flex items-center gap-3 px-2 py-1">
-            <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-cyan-400/50 shadow-lg shadow-cyan-500/25 flex items-center justify-center bg-slate-950">
-              <img src="/axy-avatar.png" alt="Axy" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 rounded-xl border border-cyan-400/30 animate-pulse pointer-events-none" />
+            <div className="relative w-10 h-10 rounded-xl overflow-hidden border border-amber-500/50 shadow-lg shadow-amber-500/25 flex items-center justify-center bg-slate-950 group">
+              <div className="absolute inset-1 rounded-full border border-dashed border-amber-400/60 animate-spin-cw" style={{ animationDuration: "14s" }} />
+              <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-400 to-white shadow-[0_0_12px_#f59e0b] animate-pulse" />
+              <div className="absolute inset-0 rounded-xl border border-amber-400/30 animate-pulse pointer-events-none" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <h2 className="font-bold text-base text-white tracking-wide">AXY</h2>
-                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">AI</span>
+                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">AI</span>
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>

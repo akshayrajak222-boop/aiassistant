@@ -27,8 +27,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   return (
     <div className={`flex w-full gap-3 py-4 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
-        <div className="w-8 h-8 rounded-lg overflow-hidden border border-cyan-500/40 flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_rgba(6,182,212,0.25)] bg-slate-900">
-          <img src="/axy-avatar.png" alt={assistantName} className="w-full h-full object-cover" />
+        <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-amber-500/50 flex items-center justify-center flex-shrink-0 shadow-[0_0_12px_rgba(245,158,11,0.3)] bg-slate-950">
+          <div className="absolute inset-0.5 rounded-full border border-dashed border-amber-400/60 animate-spin-cw" style={{ animationDuration: "14s" }} />
+          <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-400 to-white shadow-[0_0_8px_#f59e0b]" />
         </div>
       )}
 

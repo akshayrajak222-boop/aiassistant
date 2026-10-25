@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { Sparkles, Mic, Volume2, Cpu, Eye, Radio, Zap } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Mic, Volume2, Cpu, Radio, Sparkles } from "lucide-react";
 import { VoiceState } from "@/hooks/useVoice";
 
 interface AxyFaceProps {
@@ -10,297 +10,510 @@ interface AxyFaceProps {
   disabled?: boolean;
 }
 
+// ── 3D Geometry Utilities ──────────────────────────────────────────────────
+
+interface Mesh3D {
+  vertices: [number, number, number][];
+  edges: [number, number][];
+}
+
+function buildIcosphere(): Mesh3D {
+  const phi = (1 + Math.sqrt(5)) / 2;
+  const rawVerts: [number, number, number][] = [
+    [-1, phi, 0], [1, phi, 0], [-1, -phi, 0], [1, -phi, 0],
+    [0, -1, phi], [0, 1, phi], [0, -1, -phi], [0, 1, -phi],
+    [phi, 0, -1], [phi, 0, 1], [-phi, 0, -1], [-phi, 0, 1],
+  ];
+
+  const vertices: [number, number, number][] = rawVerts.map(([x, y, z]) => {
+    const l = Math.hypot(x, y, z);
+    return [x / l, y / l, z / l];
+  });
+
+  let faces: [number, number, number][] = [
+    [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+    [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+    [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+    [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1],
+  ];
+
+  const midpointMap = new Map<string, number>();
+  function getMidpoint(v1: number, v2: number): number {
+    const key = v1 < v2 ? `${v1}_${v2}` : `${v2}_${v1}`;
+    if (midpointMap.has(key)) return midpointMap.get(key)!;
+    const p1 = vertices[v1];
+    const p2 = vertices[v2];
+    const mx = (p1[0] + p2[0]) / 2;
+    const my = (p1[1] + p2[1]) / 2;
+    const mz = (p1[2] + p2[2]) / 2;
+    const l = Math.hypot(mx, my, mz);
+    const idx = vertices.length;
+    vertices.push([mx / l, my / l, mz / l]);
+    midpointMap.set(key, idx);
+    return idx;
+  }
+
+  // 1 subdivision -> 42 vertices, 80 faces, 120 edges
+  const newFaces: [number, number, number][] = [];
+  for (const [a, b, c] of faces) {
+    const ab = getMidpoint(a, b);
+    const bc = getMidpoint(b, c);
+    const ca = getMidpoint(c, a);
+    newFaces.push([a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]);
+  }
+  faces = newFaces;
+
+  const edgeSet = new Set<string>();
+  const edges: [number, number][] = [];
+  for (const [a, b, c] of faces) {
+    for (const [u, v] of [
+      [a, b],
+      [b, c],
+      [c, a],
+    ]) {
+      const key = u < v ? `${u}_${v}` : `${v}_${u}`;
+      if (!edgeSet.has(key)) {
+        edgeSet.add(key);
+        edges.push([u, v]);
+      }
+    }
+  }
+
+  return { vertices, edges };
+}
+
+interface RaySpike {
+  dir: [number, number, number];
+  lengthFactor: number;
+  phase: number;
+  speed: number;
+  width: number;
+}
+
+function buildRays(count = 32): RaySpike[] {
+  const rays: RaySpike[] = [];
+  for (let i = 0; i < count; i++) {
+    const phi = Math.acos(1 - (2 * (i + 0.5)) / count);
+    const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+    const x = Math.sin(phi) * Math.cos(theta);
+    const y = Math.sin(phi) * Math.sin(theta);
+    const z = Math.cos(phi);
+    rays.push({
+      dir: [x, y, z],
+      lengthFactor: 1.25 + (i % 5) * 0.18,
+      phase: (i * 0.3) % (Math.PI * 2),
+      speed: 2 + (i % 3) * 1.5,
+      width: 1.4 + (i % 3) * 0.6,
+    });
+  }
+  return rays;
+}
+
+interface Particle {
+  radius: number;
+  theta: number;
+  speed: number;
+  tilt: number;
+  yOffset: number;
+  size: number;
+  alpha: number;
+  twinklePhase: number;
+}
+
+function buildParticles(count = 340): Particle[] {
+  const particles: Particle[] = [];
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      radius: 1.22 + Math.random() * 0.65,
+      theta: Math.random() * Math.PI * 2,
+      speed: 0.006 + Math.random() * 0.012,
+      tilt: 0.42 + (Math.random() - 0.5) * 0.22,
+      yOffset: (Math.random() - 0.5) * 0.38,
+      size: 0.8 + Math.random() * 2.2,
+      alpha: 0.35 + Math.random() * 0.65,
+      twinklePhase: Math.random() * Math.PI * 2,
+    });
+  }
+  return particles;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const AxyFace: React.FC<AxyFaceProps> = ({ state, onClick, disabled }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
   const isListening = state === "listening";
   const isSpeaking = state === "speaking";
   const isProcessing = state === "processing";
   const isError = state === "error";
 
-  // Mouse parallax 3D tilt coordinates
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Mouse Parallax coordinates (smoothly interpolated)
+  const targetTilt = useRef({ x: 0, y: 0 });
+  const currentTilt = useRef({ x: 0, y: 0 });
 
-  // Dynamic Lip-Sync Vocal Amplitude (0.0 = closed, 1.0 = wide open)
-  const [mouthOpen, setMouthOpen] = useState(0);
+  // Real-time speech amplitude modulation
+  const speechPulse = useRef(0);
 
-  // Speech rhythm animation loop
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: true });
+    if (!ctx) return;
+
+    const icosphere = buildIcosphere();
+    const rays = buildRays(34);
+    const particles = buildParticles(360);
+
     let animId: number;
     let lastTime = performance.now();
-    let syllableTimer = 0;
-    let targetOpen = 0;
+    let rotY = 0;
+    let rotX = 0.2;
+    let rotZ = 0;
+    let speechTimer = 0;
+    let targetSpeechVal = 0;
 
-    const updateMouth = (now: number) => {
-      const delta = (now - lastTime) / 1000;
+    const render = (now: number) => {
+      const delta = Math.min(0.1, (now - lastTime) / 1000);
       lastTime = now;
 
+      // Handle speech rhythm dynamics
       if (isSpeaking) {
-        syllableTimer += delta;
-        // Natural speech syllable cadence: changes target phoneme shape every 70-130ms
-        if (syllableTimer > 0.09) {
-          syllableTimer = 0;
-          // Randomize between open vowel, semi-closed consonant, and brief pause
-          const rand = Math.random();
-          if (rand > 0.85) {
-            targetOpen = 0.1; // brief consonant closure (p, b, m)
-          } else if (rand > 0.45) {
-            targetOpen = 0.6 + Math.random() * 0.4; // open vowel (a, o, u)
-          } else {
-            targetOpen = 0.3 + Math.random() * 0.3; // semi-open (e, i, s)
-          }
+        speechTimer += delta;
+        if (speechTimer > 0.08) {
+          speechTimer = 0;
+          targetSpeechVal = 0.3 + Math.random() * 0.7; // energetic vocal pulse
         }
-        // Smoothly interpolate mouth opening towards target
-        setMouthOpen((prev) => prev + (targetOpen - prev) * Math.min(1, delta * 24));
+        speechPulse.current += (targetSpeechVal - speechPulse.current) * Math.min(1, delta * 18);
       } else if (isListening) {
-        // Subtle rhythmic micro-flutter when listening to incoming sound
-        const pulse = 0.05 + Math.sin(now / 150) * 0.05;
-        setMouthOpen(pulse);
+        speechPulse.current = 0.15 + Math.sin(now / 180) * 0.08;
       } else {
-        // Smoothly close lips when idle
-        setMouthOpen((prev) => Math.max(0, prev - delta * 8));
+        speechPulse.current = Math.max(0, speechPulse.current - delta * 4);
       }
 
-      animId = requestAnimationFrame(updateMouth);
+      // Smooth mouse parallax interpolation
+      currentTilt.current.x += (targetTilt.current.x - currentTilt.current.x) * (delta * 6);
+      currentTilt.current.y += (targetTilt.current.y - currentTilt.current.y) * (delta * 6);
+
+      // Continuous 3D Core Rotation
+      const spinSpeed = isProcessing ? 1.8 : isSpeaking ? 0.95 : 0.45;
+      rotY += delta * spinSpeed;
+      rotX = 0.22 + Math.sin(now / 3200) * 0.12 + currentTilt.current.y;
+      rotZ = Math.cos(now / 4000) * 0.08;
+
+      const yaw = rotY + currentTilt.current.x;
+      const pitch = rotX;
+      const roll = rotZ;
+
+      // Trigonometry lookup for frame
+      const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+      const cosX = Math.cos(pitch), sinX = Math.sin(pitch);
+      const cosZ = Math.cos(roll), sinZ = Math.sin(roll);
+
+      const width = canvas.width;
+      const height = canvas.height;
+      const cx = width / 2;
+      const cy = height / 2;
+      const baseRadius = width * 0.23;
+
+      // Clear canvas with deep dark transparent backing
+      ctx.clearRect(0, 0, width, height);
+
+      // 3D Point Projection Helper
+      const project = (x: number, y: number, z: number, scaleFactor = 1) => {
+        // Rotate Y (Yaw)
+        let x1 = x * cosY + z * sinY;
+        let y1 = y;
+        let z1 = -x * sinY + z * cosY;
+
+        // Rotate X (Pitch)
+        let x2 = x1;
+        let y2 = y1 * cosX - z1 * sinX;
+        let z2 = y1 * sinX + z1 * cosX;
+
+        // Rotate Z (Roll)
+        let x3 = x2 * cosZ - y2 * sinZ;
+        let y3 = x2 * sinZ + y2 * cosZ;
+        let z3 = z2;
+
+        const fov = 650;
+        const pScale = fov / (fov + z3 * baseRadius * scaleFactor);
+        const px = cx + x3 * baseRadius * scaleFactor * pScale;
+        const py = cy + y3 * baseRadius * scaleFactor * pScale;
+        return { px, py, pz: z3, pScale };
+      };
+
+      // ── Step 1: Ambient Background Core Aura ──────────────────────────────
+      const auraPulse = 1 + speechPulse.current * 0.35;
+      const auraGrad = ctx.createRadialGradient(cx, cy, 10, cx, cy, baseRadius * 1.9 * auraPulse);
+
+      if (isListening) {
+        auraGrad.addColorStop(0, "rgba(251, 113, 133, 0.4)");
+        auraGrad.addColorStop(0.4, "rgba(244, 63, 94, 0.15)");
+        auraGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      } else if (isProcessing) {
+        auraGrad.addColorStop(0, "rgba(251, 191, 36, 0.45)");
+        auraGrad.addColorStop(0.4, "rgba(245, 158, 11, 0.18)");
+        auraGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      } else {
+        // Warm Fiery Amber / Solar Gold (Matches user reference)
+        auraGrad.addColorStop(0, "rgba(255, 185, 40, 0.45)");
+        auraGrad.addColorStop(0.35, "rgba(255, 115, 0, 0.2)");
+        auraGrad.addColorStop(0.7, "rgba(230, 60, 0, 0.08)");
+        auraGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      }
+      ctx.fillStyle = auraGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, baseRadius * 1.9 * auraPulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      // ── Step 2: Back-hemisphere Particles (z < 0) ─────────────────────────
+      particles.forEach((p) => {
+        p.theta += p.speed * (isProcessing ? 2.5 : isSpeaking ? 1.6 : 1);
+        const px = Math.cos(p.theta) * p.radius;
+        const py = Math.sin(p.theta) * p.radius * Math.cos(p.tilt) + p.yOffset;
+        const pz = Math.sin(p.theta) * p.radius * Math.sin(p.tilt);
+
+        const proj = project(px, py, pz);
+        if (proj.pz < 0) {
+          const twinkle = Math.sin(now * 0.003 * p.speed * 100 + p.twinklePhase);
+          const alpha = Math.max(0.1, p.alpha * (0.45 + twinkle * 0.25) * 0.6);
+          ctx.beginPath();
+          ctx.arc(proj.px, proj.py, p.size * proj.pScale * 0.8, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 160, 30, ${alpha})`;
+          ctx.fill();
+        }
+      });
+
+      // ── Step 3: Back-hemisphere Geodesic Sphere Wireframe ─────────────────
+      const projectedVerts = icosphere.vertices.map(([vx, vy, vz]) => project(vx, vy, vz));
+
+      ctx.lineWidth = 1.0;
+      icosphere.edges.forEach(([v1, v2]) => {
+        const p1 = projectedVerts[v1];
+        const p2 = projectedVerts[v2];
+        // Draw back edges dimmer
+        if (p1.pz < 0 || p2.pz < 0) {
+          const avgZ = (p1.pz + p2.pz) / 2;
+          const alpha = Math.max(0.08, 0.25 + avgZ * 0.2);
+          ctx.strokeStyle = `rgba(230, 95, 10, ${alpha})`;
+          ctx.beginPath();
+          ctx.moveTo(p1.px, p1.py);
+          ctx.lineTo(p2.px, p2.py);
+          ctx.stroke();
+        }
+      });
+
+      // ── Step 4: Back Orbital Rings / Ribbon Arcs ──────────────────────────
+      const drawRing = (tiltAngle: number, radiusScale: number, arcStart: number, arcEnd: number, isFront: boolean, ringWidth = 3) => {
+        const steps = 70;
+        const cosT = Math.cos(tiltAngle);
+        const sinT = Math.sin(tiltAngle);
+
+        ctx.beginPath();
+        let first = true;
+        for (let i = 0; i <= steps; i++) {
+          const t = arcStart + (i / steps) * (arcEnd - arcStart);
+          const rx = Math.cos(t) * radiusScale;
+          const ry = Math.sin(t) * radiusScale * cosT;
+          const rz = Math.sin(t) * radiusScale * sinT;
+
+          const pt = project(rx, ry, rz);
+          const belongsToLayer = isFront ? pt.pz >= 0 : pt.pz < 0;
+
+          if (belongsToLayer) {
+            if (first) {
+              ctx.moveTo(pt.px, pt.py);
+              first = false;
+            } else {
+              ctx.lineTo(pt.px, pt.py);
+            }
+          } else {
+            first = true;
+          }
+        }
+        ctx.lineWidth = ringWidth;
+        ctx.stroke();
+      };
+
+      // Draw back portion of orbital ribbon
+      ctx.strokeStyle = "rgba(255, 140, 20, 0.3)";
+      drawRing(0.55, 1.45, 0, Math.PI * 2, false, 4);
+      drawRing(-0.65, 1.35, now * 0.0006, now * 0.0006 + Math.PI * 1.5, false, 2);
+
+      // ── Step 5: High-Energy Radial Needles / Laser Spikes ──────────────────
+      rays.forEach((ray) => {
+        const flare = 1 + speechPulse.current * 0.55 + Math.sin(now * 0.005 * ray.speed + ray.phase) * 0.15;
+        const rayLen = ray.lengthFactor * flare;
+
+        const tip = project(ray.dir[0] * rayLen, ray.dir[1] * rayLen, ray.dir[2] * rayLen);
+        const origin = project(ray.dir[0] * 0.15, ray.dir[1] * 0.15, ray.dir[2] * 0.15);
+
+        // Ray stroke with radiant glow gradient
+        const rayGrad = ctx.createLinearGradient(origin.px, origin.py, tip.px, tip.py);
+        rayGrad.addColorStop(0, "rgba(255, 255, 220, 0.95)");
+        rayGrad.addColorStop(0.3, "rgba(255, 195, 45, 0.85)");
+        rayGrad.addColorStop(0.7, "rgba(255, 95, 10, 0.5)");
+        rayGrad.addColorStop(1, "rgba(255, 50, 0, 0)");
+
+        ctx.strokeStyle = rayGrad;
+        ctx.lineWidth = ray.width * tip.pScale;
+        ctx.beginPath();
+        ctx.moveTo(origin.px, origin.py);
+        ctx.lineTo(tip.px, tip.py);
+        ctx.stroke();
+
+        // Tip spark
+        if (tip.pz > -0.2) {
+          ctx.fillStyle = "rgba(255, 240, 160, 0.8)";
+          ctx.beginPath();
+          ctx.arc(tip.px, tip.py, 1.2 * tip.pScale, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // ── Step 6: Blazing Central Fusion Star / Nucleus ─────────────────────
+      const coreSize = baseRadius * (0.28 + speechPulse.current * 0.12);
+      const starGrad = ctx.createRadialGradient(cx, cy, 2, cx, cy, coreSize);
+
+      starGrad.addColorStop(0, "#ffffff");
+      starGrad.addColorStop(0.2, "#fffb96");
+      starGrad.addColorStop(0.5, "#ffaa00");
+      starGrad.addColorStop(0.85, "#ff5500");
+      starGrad.addColorStop(1, "rgba(255, 60, 0, 0)");
+
+      ctx.fillStyle = starGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, coreSize, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Intense White Center Point
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(cx, cy, coreSize * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+
+      // ── Step 7: Front-hemisphere Geodesic Sphere Wireframe ────────────────
+      ctx.lineWidth = 1.4;
+      icosphere.edges.forEach(([v1, v2]) => {
+        const p1 = projectedVerts[v1];
+        const p2 = projectedVerts[v2];
+        if (p1.pz >= 0 && p2.pz >= 0) {
+          const avgZ = (p1.pz + p2.pz) / 2;
+          const alpha = Math.min(1, 0.5 + avgZ * 0.55);
+
+          // Glowing golden wireframe line
+          ctx.strokeStyle = `rgba(255, 215, 80, ${alpha})`;
+          ctx.beginPath();
+          ctx.moveTo(p1.px, p1.py);
+          ctx.lineTo(p2.px, p2.py);
+          ctx.stroke();
+        }
+      });
+
+      // Illuminated Vertex Nodes on Front Sphere
+      projectedVerts.forEach((p) => {
+        if (p.pz > 0.1) {
+          ctx.fillStyle = `rgba(255, 245, 180, ${p.pz * 0.9})`;
+          ctx.beginPath();
+          ctx.arc(p.px, p.py, 1.6 * p.pScale, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+
+      // ── Step 8: Front Orbital Rings / Wide Golden Ribbon Band ─────────────
+      // Main Ribbon Arc (Wide 3D sweeping band, exactly as in user image)
+      ctx.strokeStyle = "rgba(255, 175, 45, 0.95)";
+      ctx.shadowColor = "rgba(255, 150, 0, 0.8)";
+      ctx.shadowBlur = 12;
+      drawRing(0.55, 1.45, 0, Math.PI * 2, true, 5.5);
+
+      // Inner Ribbon Arc Highlight
+      ctx.strokeStyle = "rgba(255, 240, 160, 0.9)";
+      ctx.shadowBlur = 6;
+      drawRing(0.55, 1.45, 0, Math.PI * 2, true, 1.8);
+
+      // Counter-rotating Gyro Ribbon
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(255, 140, 20, 0.85)";
+      drawRing(-0.65, 1.35, now * 0.0006, now * 0.0006 + Math.PI * 1.5, true, 3);
+
+      // Equatorial HUD Segmented Arc
+      ctx.strokeStyle = "rgba(255, 200, 70, 0.75)";
+      drawRing(0.12, 1.65, -now * 0.0008, -now * 0.0008 + Math.PI * 0.85, true, 2);
+
+      // ── Step 9: Front-hemisphere Stardust Ember Particles ─────────────────
+      particles.forEach((p) => {
+        const px = Math.cos(p.theta) * p.radius;
+        const py = Math.sin(p.theta) * p.radius * Math.cos(p.tilt) + p.yOffset;
+        const pz = Math.sin(p.theta) * p.radius * Math.sin(p.tilt);
+
+        const proj = project(px, py, pz);
+        if (proj.pz >= 0) {
+          const twinkle = Math.sin(now * 0.004 * p.speed * 100 + p.twinklePhase);
+          const alpha = Math.min(1, p.alpha * (0.7 + twinkle * 0.3) * (0.8 + proj.pz * 0.4));
+          const pRadius = p.size * proj.pScale * (1 + speechPulse.current * 0.2);
+
+          // Glowing ember particle
+          ctx.beginPath();
+          ctx.arc(proj.px, proj.py, pRadius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 220, 100, ${alpha})`;
+          ctx.shadowColor = "rgba(255, 160, 30, 0.9)";
+          ctx.shadowBlur = 8;
+          ctx.fill();
+        }
+      });
+      ctx.shadowBlur = 0; // Reset shadow
+
+      animId = requestAnimationFrame(render);
     };
 
-    animId = requestAnimationFrame(updateMouth);
-    return () => cancelAnimationFrame(animId);
-  }, [isSpeaking, isListening]);
+    animId = requestAnimationFrame(render);
 
+    return () => {
+      cancelAnimationFrame(animId);
+    };
+  }, [isSpeaking, isListening, isProcessing, isError]);
+
+  // Handle Mouse Tilt Inertia
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 18; // -9 to +9 deg
-    const y = ((e.clientY - rect.top) / rect.height - 0.5) * -18; // -9 to +9 deg
-    setTilt({ x, y });
+    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 0.65;
+    const y = ((e.clientY - rect.top) / rect.height - 0.5) * -0.65;
+    targetTilt.current = { x, y };
   };
 
   const handleMouseLeave = () => {
-    setTilt({ x: 0, y: 0 });
+    targetTilt.current = { x: 0, y: 0 };
   };
-
-  // State theme colors
-  const stateGlow = isListening
-    ? "rgba(244, 63, 94, 0.4)"
-    : isSpeaking
-    ? "rgba(16, 185, 129, 0.45)"
-    : isProcessing
-    ? "rgba(245, 158, 11, 0.45)"
-    : isError
-    ? "rgba(239, 68, 68, 0.5)"
-    : "rgba(34, 211, 238, 0.35)";
-
-  const ringColor = isListening
-    ? "border-rose-500/60 shadow-[0_0_20px_rgba(244,63,94,0.4)]"
-    : isSpeaking
-    ? "border-emerald-400/70 shadow-[0_0_25px_rgba(16,185,129,0.5)]"
-    : isProcessing
-    ? "border-amber-400/60 shadow-[0_0_20px_rgba(245,158,11,0.4)]"
-    : "border-cyan-400/50 shadow-[0_0_25px_rgba(34,211,238,0.4)]";
 
   return (
     <div
       ref={containerRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="relative flex flex-col items-center justify-center select-none py-2 perspective-1000"
-      style={{ perspective: "1200px" }}
+      className="relative flex flex-col items-center justify-center select-none py-2"
     >
-      {/* 3D Holographic Canvas Stage */}
+      {/* 3D Canvas Stage */}
       <div
-        className="relative w-80 h-96 md:w-96 md:h-[430px] flex items-center justify-center transition-transform duration-200 ease-out cursor-pointer group"
         onClick={onClick}
-        title={isListening ? "Stop listening" : isSpeaking ? "Interrupt Axy" : "Click hologram to speak"}
-        style={{
-          transform: `rotateY(${tilt.x}deg) rotateX(${tilt.y}deg)`,
-          transformStyle: "preserve-3d",
-        }}
+        title={isListening ? "Stop listening" : isSpeaking ? "Interrupt Axy" : "Click 3D Core to speak"}
+        className="relative w-80 h-80 sm:w-96 sm:h-96 md:w-[420px] md:h-[420px] flex items-center justify-center cursor-pointer group transition-transform duration-300 hover:scale-[1.02]"
       >
-        {/* Ambient Holographic Backlight Aura */}
-        <div
-          className="absolute inset-x-8 top-12 bottom-12 rounded-full blur-3xl transition-all duration-700 pointer-events-none"
-          style={{
-            background: stateGlow,
-            transform: isSpeaking ? "scale(1.15)" : isListening ? "scale(1.1)" : "scale(0.95)",
-          }}
+        <canvas
+          ref={canvasRef}
+          width={840}
+          height={840}
+          className="w-full h-full drop-shadow-[0_0_50px_rgba(255,140,0,0.35)]"
         />
 
-        {/* Orbiting Concentric 3D HUD Rings Around Head */}
-        <div
-          className={`absolute top-4 w-72 h-72 md:w-80 md:h-80 rounded-full border border-dashed ${ringColor} animate-spin-cw pointer-events-none transition-colors duration-500`}
-          style={{
-            animationDuration: isProcessing ? "6s" : "28s",
-            transform: "rotateX(72deg) scale(0.95)",
-          }}
-        >
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-cyan-300 shadow-[0_0_12px_#22d3ee]"></div>
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_12px_#38bdf8]"></div>
-        </div>
-
-        {/* Torso Level 3D Orbiting Ring */}
-        <div
-          className={`absolute bottom-14 w-84 h-84 md:w-96 md:h-96 rounded-full border-2 border-dotted border-cyan-500/30 animate-spin-ccw pointer-events-none transition-colors duration-500`}
-          style={{
-            animationDuration: isProcessing ? "5s" : "22s",
-            transform: "rotateX(78deg) scale(1.05)",
-          }}
-        />
-
-        {/* Main Holographic Avatar Container */}
-        <div
-          className="relative z-10 w-72 h-88 md:w-84 md:h-[390px] rounded-3xl overflow-hidden shadow-2xl border border-cyan-500/30 backdrop-blur-sm bg-slate-950/80 flex items-center justify-center hologram-float"
-          style={{
-            boxShadow: `0 0 40px ${stateGlow}, inset 0 0 25px rgba(6,182,212,0.15)`,
-          }}
-        >
-          {/* Hologram Base Image */}
-          <div className="relative w-full h-full">
-            <img
-              src="/axy-hologram.jpg"
-              alt="Axy 3D Hologram AI"
-              onError={(e) => {
-                const target = e.currentTarget;
-                if (!target.src.endsWith("/axy-avatar.png")) {
-                  target.src = "/axy-avatar.png";
-                }
-              }}
-              className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-500 pointer-events-none ${
-                isSpeaking
-                  ? "scale-103 brightness-110 drop-shadow-[0_0_20px_rgba(52,211,153,0.3)]"
-                  : isListening
-                  ? "scale-102 brightness-105"
-                  : isProcessing
-                  ? "brightness-110 animate-pulse"
-                  : "scale-100 group-hover:scale-102"
-              }`}
-            />
-
-            {/* Dynamic Mouth / Lip-Sync Overlay */}
-            {/* Exactly positioned over the hologram face lips */}
-            <div
-              className="absolute pointer-events-none z-30 transition-transform duration-75"
-              style={{
-                top: "41.6%",
-                left: "43.8%",
-                width: "9.2%",
-                height: "3.6%",
-                transform: `translate(-50%, -50%) scale(${1 + mouthOpen * 0.15})`,
-              }}
-            >
-              {/* Mouth Cavity Depth Glow when speaking */}
-              <div
-                className="w-full rounded-full transition-all duration-75 flex items-center justify-center overflow-hidden"
-                style={{
-                  height: `${Math.max(2, mouthOpen * 11)}px`,
-                  backgroundColor: mouthOpen > 0.08 ? "rgba(2, 6, 23, 0.95)" : "transparent",
-                  boxShadow:
-                    mouthOpen > 0.15
-                      ? "0 0 8px rgba(34, 211, 238, 0.8), inset 0 0 6px rgba(56, 189, 248, 0.9)"
-                      : "none",
-                  border:
-                    mouthOpen > 0.12
-                      ? "1px solid rgba(103, 232, 249, 0.9)"
-                      : "1px solid transparent",
-                }}
-              >
-                {/* Acoustic Energy Core in Mouth */}
-                {mouthOpen > 0.2 && (
-                  <div
-                    className="w-3/4 rounded-full bg-cyan-200 blur-[1px] animate-pulse"
-                    style={{
-                      height: `${Math.max(1, mouthOpen * 3.5)}px`,
-                      boxShadow: "0 0 10px #22d3ee, 0 0 4px #fff",
-                    }}
-                  />
-                )}
-              </div>
-
-              {/* Holographic Vocal Wave Ripples radiating from lips when speaking */}
-              {isSpeaking && mouthOpen > 0.25 && (
-                <div
-                  className="absolute -inset-2 rounded-full border border-cyan-400/60 pointer-events-none"
-                  style={{
-                    animation: "vocal-ripple 0.8s ease-out infinite",
-                  }}
-                />
-              )}
-            </div>
-
-            {/* Subtle Chin/Jaw Flex Movement in sync with speech */}
-            <div
-              className="absolute pointer-events-none z-20"
-              style={{
-                top: "43.5%",
-                left: "43.8%",
-                width: "12%",
-                height: "4%",
-                transform: `translate(-50%, 0) translateY(${mouthOpen * 2.5}px)`,
-                background:
-                  mouthOpen > 0.2
-                    ? "radial-gradient(ellipse at center, rgba(34, 211, 238, 0.25) 0%, transparent 70%)"
-                    : "transparent",
-              }}
-            />
-
-            {/* Glowing Holographic Eyes Layer */}
-            <div
-              className={`absolute pointer-events-none z-20 transition-all duration-300 blur-[1px] rounded-full ${
-                isSpeaking
-                  ? "bg-emerald-400/40 shadow-[0_0_15px_#34d399]"
-                  : isListening
-                  ? "bg-rose-400/45 shadow-[0_0_16px_#fb7185]"
-                  : isProcessing
-                  ? "bg-amber-300/50 shadow-[0_0_16px_#fbbf24] animate-pulse"
-                  : "bg-cyan-300/30 shadow-[0_0_12px_#22d3ee]"
-              }`}
-              style={{
-                top: "28.5%",
-                left: "38.5%",
-                width: "12%",
-                height: "2.8%",
-              }}
-            />
-
-            {/* Holographic Scanlines Texture Overlay */}
-            <div
-              className="absolute inset-0 pointer-events-none opacity-25 mix-blend-screen"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(0deg, rgba(34, 211, 238, 0.18), rgba(34, 211, 238, 0.18) 1px, transparent 1px, transparent 3px)",
-              }}
-            />
-
-            {/* Continuous Hologram Laser Scanline Sweeper */}
-            <div
-              className="absolute inset-x-0 h-16 pointer-events-none bg-gradient-to-b from-transparent via-cyan-400/25 to-transparent"
-              style={{
-                animation: isListening
-                  ? "hologram-scan 2s ease-in-out infinite"
-                  : isProcessing
-                  ? "hologram-scan 1.2s linear infinite"
-                  : "hologram-scan 4s ease-in-out infinite",
-              }}
-            />
-
-            {/* Holographic Chromatic Glitch Edge Lines */}
-            <div className="absolute inset-0 rounded-3xl border border-cyan-400/20 pointer-events-none" />
-
-            {/* Hologram Projector Beam at Bottom */}
-            <div
-              className="absolute bottom-0 inset-x-0 h-12 bg-gradient-to-t from-cyan-500/25 to-transparent pointer-events-none"
-              style={{
-                boxShadow: "inset 0 -10px 20px rgba(6, 182, 212, 0.35)",
-              }}
-            />
-          </div>
-        </div>
-
-        {/* High-Tech Hologram Status Badge */}
-        <div className="absolute -bottom-4 z-30 px-4 py-1.5 rounded-full bg-slate-900/95 border border-slate-700/80 backdrop-blur-md shadow-2xl flex items-center gap-2 text-xs font-mono tracking-wider">
+        {/* High-Tech Status HUD Pill */}
+        <div className="absolute -bottom-2 z-30 px-4 py-1.5 rounded-full bg-slate-900/95 border border-amber-500/40 backdrop-blur-md shadow-2xl flex items-center gap-2 text-xs font-mono tracking-wider transition-all duration-300 group-hover:border-amber-400">
           {isSpeaking ? (
             <>
               <Volume2 className="w-4 h-4 text-emerald-400 animate-pulse" />
-              <span className="text-emerald-300 font-semibold">AXY SPEAKING</span>
+              <span className="text-emerald-300 font-semibold">AXY TRANSMITTING</span>
             </>
           ) : isListening ? (
             <>
@@ -310,69 +523,27 @@ export const AxyFace: React.FC<AxyFaceProps> = ({ state, onClick, disabled }) =>
           ) : isProcessing ? (
             <>
               <Cpu className="w-4 h-4 text-amber-400 animate-spin" />
-              <span className="text-amber-300 font-semibold">PROCESSING</span>
+              <span className="text-amber-300 font-semibold">SYNTHESIZING</span>
             </>
           ) : (
             <>
-              <Radio className="w-4 h-4 text-cyan-400 animate-pulse" />
-              <span className="text-cyan-300 font-medium">HOLOGRAM ONLINE</span>
+              <Radio className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span className="text-amber-300 font-medium">3D QUANTUM CORE // ONLINE</span>
             </>
           )}
         </div>
       </div>
 
-      {/* Helper text under hologram */}
-      <p className="mt-6 text-xs text-slate-400 font-mono tracking-wide">
+      {/* Guide label */}
+      <p className="mt-5 text-xs text-amber-400/80 font-mono tracking-wide">
         {isListening
-          ? "Listening to your voice... (click hologram to finish)"
+          ? "Listening to your voice... (click core to finish)"
           : isSpeaking
-          ? "Speaking and animating lips... (click to interrupt)"
+          ? "Axy is speaking... (click core to interrupt)"
           : isProcessing
-          ? "Axy is analyzing your input..."
-          : "Click 3D Hologram to Speak"}
+          ? "Processing input through neural model..."
+          : "Click 3D Core to Speak"}
       </p>
-
-      {/* Hologram Keyframe Animations */}
-      <style jsx>{`
-        .hologram-float {
-          animation: float-bob 6s ease-in-out infinite;
-        }
-
-        @keyframes float-bob {
-          0%, 100% {
-            transform: translateY(0px);
-          }
-          50% {
-            transform: translateY(-8px);
-          }
-        }
-
-        @keyframes hologram-scan {
-          0% {
-            top: 2%;
-            opacity: 0.15;
-          }
-          50% {
-            top: 88%;
-            opacity: 0.6;
-          }
-          100% {
-            top: 2%;
-            opacity: 0.15;
-          }
-        }
-
-        @keyframes vocal-ripple {
-          0% {
-            transform: scale(0.8);
-            opacity: 0.9;
-          }
-          100% {
-            transform: scale(2.2);
-            opacity: 0;
-          }
-        }
-      `}</style>
     </div>
   );
 };
