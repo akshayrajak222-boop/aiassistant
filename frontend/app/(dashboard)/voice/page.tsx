@@ -218,7 +218,7 @@ export default function VoicePage() {
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            3D Avatar Face
+            3D Hologram (Lip-Sync)
           </button>
           <button
             onClick={() => setVisualMode("orb")}
