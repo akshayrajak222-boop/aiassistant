@@ -31,15 +31,13 @@ from backend.providers.base import AIProvider
 logger = logging.getLogger(__name__)
 
 # Models known to support native tool calling through Ollama's /v1 API.
-# This list is non-exhaustive; update as Ollama adds model support.
+# Note: 1B and 0.5B models lack capacity for tool calling and are excluded.
 _TOOL_CAPABLE_MODELS: frozenset[str] = frozenset(
     {
         "llama3.1",
         "llama3.1:8b",
         "llama3.1:70b",
-        "llama3.2",
         "llama3.2:3b",
-        "llama3.2:1b",
         "hermes3",
         "hermes3:8b",
         "mistral-nemo",
@@ -57,9 +55,15 @@ _TOOL_CAPABLE_MODELS: frozenset[str] = frozenset(
 
 def _model_supports_tools(model_name: str) -> bool:
     """Heuristic check whether a given Ollama model supports native tool calling."""
-    base_name = model_name.split(":")[0].lower()
-    return model_name.lower() in _TOOL_CAPABLE_MODELS or base_name in {
-        m.split(":")[0] for m in _TOOL_CAPABLE_MODELS
+    name_lower = model_name.lower().strip()
+    # 1B and 0.5B models lack parameter capacity for function calling and get confused by tool schemas
+    if ":1b" in name_lower or ":0.5b" in name_lower or name_lower.endswith("1b") or "1b" in name_lower.split(":"):
+        return False
+    if name_lower in _TOOL_CAPABLE_MODELS:
+        return True
+    base_name = name_lower.split(":")[0]
+    return base_name in {
+        m.split(":")[0] for m in _TOOL_CAPABLE_MODELS if not (":1b" in m or ":0.5b" in m)
     }
 
 
@@ -157,9 +161,8 @@ class OllamaProvider(AIProvider):
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]] | None]:
         """Prepare messages and tools for the API call.
 
-        When the model does not support native tool calling, tool schemas are
-        injected into the system prompt so the model can still attempt tool use
-        via text. The returned tools list is None in that case.
+        When the model does not support native tool calling, tools are omitted
+        to prevent tool schema leakage into conversational responses.
         """
         native = _model_supports_tools(model)
         converted_messages: list[dict[str, Any]] = []
@@ -172,13 +175,6 @@ class OllamaProvider(AIProvider):
                 system_content = msg.get("content", "")
             else:
                 converted_messages.append({"role": role, "content": msg.get("content", "")})
-
-        if tools and not native:
-            # Inject tool schemas into system prompt – graceful degradation
-            tool_instructions = _tools_to_system_prompt(tools)
-            combined = f"{system_content}\n\n{tool_instructions}" if system_content else tool_instructions
-            converted_messages.insert(0, {"role": "system", "content": combined})
-            return converted_messages, None  # No structured tool call
 
         if system_content:
             converted_messages.insert(0, {"role": "system", "content": system_content})
@@ -211,11 +207,40 @@ class OllamaProvider(AIProvider):
 
         try:
             stream = await self._client.chat.completions.create(**kwargs)
+            buffer = ""
+            filtering_schema_leak = True
             async for chunk in stream:
                 if chunk.choices:
                     delta = chunk.choices[0].delta
                     if delta.content:
-                        yield delta.content
+                        text = delta.content
+                        if filtering_schema_leak:
+                            buffer += text
+                            stripped = buffer.lstrip()
+                            if (
+                                stripped.startswith("}{")
+                                or stripped.startswith('{"type":"function')
+                                or stripped.startswith('{"function"')
+                            ):
+                                if "}\n" in buffer:
+                                    parts = buffer.split("}\n", 1)
+                                    buffer = ""
+                                    filtering_schema_leak = False
+                                    remaining = parts[1].lstrip()
+                                    if remaining:
+                                        yield remaining
+                                elif len(buffer) > 2048:
+                                    buffer = ""
+                                    filtering_schema_leak = False
+                                continue
+                            else:
+                                filtering_schema_leak = False
+                                yield buffer
+                                buffer = ""
+                        else:
+                            yield text
+            if buffer and not filtering_schema_leak:
+                yield buffer
         except openai.APIConnectionError as exc:
             logger.error(
                 "Cannot connect to Ollama at %s. Is Ollama running? Error: %s",
@@ -250,7 +275,13 @@ class OllamaProvider(AIProvider):
 
         try:
             response = await self._client.chat.completions.create(**kwargs)
-            return response.choices[0].message.content or ""
+            content = response.choices[0].message.content or ""
+            stripped = content.lstrip()
+            if stripped.startswith("}{") or stripped.startswith('{"type":"function'):
+                idx = content.rfind("}\n")
+                if idx != -1:
+                    content = content[idx + 2:].strip()
+            return content
         except openai.APIConnectionError as exc:
             logger.error(
                 "Cannot connect to Ollama at %s. Is Ollama running? Error: %s",
