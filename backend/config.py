@@ -84,9 +84,11 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(default=None, description="OpenAI API key")
     anthropic_api_key: str | None = Field(default=None, description="Anthropic API key")
     ai_model: str | None = None
-    default_ai_provider: Literal["openai", "anthropic"] = "anthropic"
+    default_ai_provider: Literal["openai", "anthropic", "ollama"] = "openai"
     default_model_openai: str = "gpt-4o"
     default_model_anthropic: str = "claude-3-5-sonnet-20241022"
+    ollama_base_url: str = "http://ollama:11434"
+    ollama_model: str = "llama3.2:1b"
 
     # ── Google / Gmail ────────────────────────────────────────────────────────
     google_client_id: str | None = None
@@ -129,9 +131,9 @@ class Settings(BaseSettings):
                     raise ValueError(
                         "RS256 algorithm requires JWT_PRIVATE_KEY and JWT_PUBLIC_KEY"
                     )
-            if not any([self.openai_api_key, self.anthropic_api_key]):
+            if not any([self.openai_api_key, self.anthropic_api_key, self.default_ai_provider == "ollama"]):
                 raise ValueError(
-                    "At least one AI provider API key must be set in production"
+                    "At least one AI provider API key or ollama must be set in production"
                 )
         return self
 

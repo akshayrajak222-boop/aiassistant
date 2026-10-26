@@ -40,6 +40,8 @@ _TOOL_CAPABLE_MODELS: frozenset[str] = frozenset(
         "llama3.2",
         "llama3.2:3b",
         "llama3.2:1b",
+        "hermes3",
+        "hermes3:8b",
         "mistral-nemo",
         "mistral",
         "qwen2.5",
