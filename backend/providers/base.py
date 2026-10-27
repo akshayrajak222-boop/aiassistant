@@ -58,6 +58,7 @@ class AIProvider(abc.ABC):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         model: str | None = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         """Stream a chat completion, yielding text chunks as they arrive.
 
@@ -84,6 +85,7 @@ class AIProvider(abc.ABC):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         model: str | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         """Non-streaming chat completion; returns the full response text.
 

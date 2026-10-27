@@ -44,6 +44,7 @@ class MessageSendRequest(BaseModel):
     conversation_id: str | None = None
     message: str = Field(..., min_length=1, max_length=10000)
     model: str | None = None
+    mode: str | None = "chat"  # "chat" or "voice"
 
 
 class MessageResponse(BaseModel):
@@ -280,10 +281,20 @@ async def chat_stream(
     recent_texts = [m.content for m in history_records[-5:]]
     memory_context = await memory_service.get_relevant_context(db, current_user.id, recent_texts)
 
-    full_system_prompt = (
-        f"{base_instructions}\n\n{memory_context}\n\n"
-        "DIRECTIVE: Be concise, clear, and direct. When conversing, reply in 1 to 3 natural sentences without unnecessary preamble or markdown formatting."
-    )
+    is_voice = (req.mode == "voice")
+    if is_voice:
+        full_system_prompt = (
+            f"{base_instructions}\n\n{memory_context}\n\n"
+            "VOICE INTERFACE DIRECTIVE: You are speaking directly to the user through text-to-speech. "
+            "Reply strictly in 1 to 2 short, natural conversational sentences (under 45 words). "
+            "NEVER use lists, bullet points, asterisks, numbered steps, or markdown formatting. "
+            "Be direct, spoken, and friendly. If asked for ideas or suggestions, give 2 brief highlights and ask if they would like to explore them."
+        )
+    else:
+        full_system_prompt = (
+            f"{base_instructions}\n\n{memory_context}\n\n"
+            "DIRECTIVE: Be concise, clear, and direct. When conversing, reply in 1 to 3 natural sentences without unnecessary preamble or markdown formatting."
+        )
 
     task_id = str(uuid.uuid4())
     user_id = current_user.id
@@ -304,6 +315,7 @@ async def chat_stream(
                 task_id=task_id,
                 model_override=req.model,
                 context={"timezone": settings.timezone if settings else "UTC"},
+                max_tokens=120 if is_voice else None,
             ):
                 if event.type == "text":
                     assistant_content.append(event.content)

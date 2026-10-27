@@ -174,6 +174,7 @@ class AnthropicProvider(AIProvider):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         model: str | None = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         """Stream chat completion via Anthropic SSE."""
         resolved_model = model or self._default_model
@@ -182,7 +183,7 @@ class AnthropicProvider(AIProvider):
 
         kwargs: dict[str, Any] = {
             "model": resolved_model,
-            "max_tokens": self._max_tokens,
+            "max_tokens": max_tokens or self._max_tokens,
             "messages": converted_messages,
         }
         if system:
@@ -253,6 +254,7 @@ class AnthropicProvider(AIProvider):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         model: str | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         """Non-streaming chat completion."""
         resolved_model = model or self._default_model
@@ -261,7 +263,7 @@ class AnthropicProvider(AIProvider):
 
         kwargs: dict[str, Any] = {
             "model": resolved_model,
-            "max_tokens": self._max_tokens,
+            "max_tokens": max_tokens or self._max_tokens,
             "messages": converted_messages,
         }
         if system:

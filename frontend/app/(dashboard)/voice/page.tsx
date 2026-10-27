@@ -32,8 +32,11 @@ export default function VoicePage() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [logs, setLogs] = useState<VoiceMessageLog[]>([]);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
+  const [liveStreamingText, setLiveStreamingText] = useState<string>("");
   const [systemClock, setSystemClock] = useState<string>("");
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const streamTimeoutRef = useRef<any>(null);
 
   // Live system clock for HUD
   useEffect(() => {
@@ -47,7 +50,17 @@ export default function VoicePage() {
   }, []);
 
   const handleVoiceTranscript = async (text: string) => {
-    if (!text.trim() || isAiProcessing) return;
+    if (!text.trim()) return;
+
+    // If an existing request is active, cancel it before starting new one
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    if (streamTimeoutRef.current) {
+      clearTimeout(streamTimeoutRef.current);
+      streamTimeoutRef.current = null;
+    }
 
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const userLog: VoiceMessageLog = {
@@ -58,22 +71,43 @@ export default function VoicePage() {
     };
     setLogs((prev) => [...prev, userLog]);
     setIsAiProcessing(true);
+    setLiveStreamingText("");
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    // 20-second watchdog: if server stalls or model hangs on CPU, recover cleanly
+    streamTimeoutRef.current = setTimeout(() => {
+      console.warn("Voice turn timeout after 20s. Aborting in-flight request.");
+      controller.abort();
+      setIsAiProcessing(false);
+      setLiveStreamingText("");
+      speak("I took a bit too long to process that. Please try asking again.");
+    }, 20000);
 
     try {
       let accumulatedResponse = "";
-      for await (const event of streamChatSSE(text, activeSessionId || undefined)) {
+      for await (const event of streamChatSSE(text, activeSessionId || undefined, undefined, "voice", controller.signal)) {
         if (event.type === "conversation_id") {
           setActiveSessionId(event.data.conversation_id);
         } else if (event.type === "text") {
           const chunk = typeof event.data === "object" ? event.data.content : event.data;
           accumulatedResponse += chunk;
+          setLiveStreamingText(accumulatedResponse);
         } else if (event.type === "error") {
           console.error("Agent error:", event.data);
         }
       }
 
+      if (streamTimeoutRef.current) {
+        clearTimeout(streamTimeoutRef.current);
+        streamTimeoutRef.current = null;
+      }
+
+      setLiveStreamingText("");
+
       if (accumulatedResponse) {
-        const cleanReply = accumulatedResponse.replace(/[*#_`~\[\]]/g, "").trim();
+        const cleanReply = accumulatedResponse.replace(/[*#_`~\[\]\(\)>]/g, " ").replace(/\s+/g, " ").trim();
         const axyLog: VoiceMessageLog = {
           id: "axy-" + Date.now(),
           sender: "jarvis",
@@ -89,9 +123,18 @@ export default function VoicePage() {
       } else {
         setIsAiProcessing(false);
       }
-    } catch (err) {
-      console.error("Voice streaming execution error:", err);
+    } catch (err: any) {
+      if (streamTimeoutRef.current) {
+        clearTimeout(streamTimeoutRef.current);
+        streamTimeoutRef.current = null;
+      }
+      setLiveStreamingText("");
+      if (err.name !== "AbortError") {
+        console.error("Voice streaming execution error:", err);
+      }
       setIsAiProcessing(false);
+    } finally {
+      abortControllerRef.current = null;
     }
   };
 
@@ -132,6 +175,21 @@ export default function VoicePage() {
   const effectiveState = isAiProcessing ? "processing" : state;
 
   const toggleVoice = () => {
+    if (isAiProcessing) {
+      // Cancel active AI generation/synthesis on user tap
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      if (streamTimeoutRef.current) {
+        clearTimeout(streamTimeoutRef.current);
+        streamTimeoutRef.current = null;
+      }
+      interruptSpeech();
+      setLiveStreamingText("");
+      setIsAiProcessing(false);
+      return;
+    }
     if (effectiveState === "listening") {
       stopListening();
     } else if (effectiveState === "speaking") {
@@ -245,9 +303,14 @@ export default function VoicePage() {
           <JarvisOrb state={effectiveState} onClick={toggleVoice} disabled={!isSupported} />
         )}
 
-        {/* Live Speech Recognition Bubble */}
+        {/* Live Speech Recognition & AI Response Bubble */}
         <div className="max-w-lg w-full min-h-[64px] bg-slate-900/80 backdrop-blur-md border border-cyan-500/30 rounded-2xl p-4 text-center flex items-center justify-center shadow-xl shadow-cyan-950/20 mt-3">
-          {transcript ? (
+          {liveStreamingText ? (
+            <p className="text-sm font-mono text-emerald-300 tracking-wide animate-pulse">
+              <span className="text-emerald-500 mr-2 font-bold">&gt; AXY:</span>
+              "{liveStreamingText}"
+            </p>
+          ) : transcript ? (
             <p className="text-sm font-mono text-cyan-300 tracking-wide">
               <span className="text-slate-500 mr-2">&gt;</span>
               "{transcript}"

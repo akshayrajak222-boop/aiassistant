@@ -189,6 +189,7 @@ class OpenAIProvider(AIProvider):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         model: str | None = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         """Stream chat completion via OpenAI SSE."""
         resolved_model = model or self._default_model
@@ -200,7 +201,7 @@ class OpenAIProvider(AIProvider):
 
         kwargs: dict[str, Any] = {
             "model": resolved_model,
-            "max_tokens": self._max_tokens,
+            "max_tokens": max_tokens or self._max_tokens,
             "messages": converted,
             "stream": True,
         }
@@ -259,6 +260,7 @@ class OpenAIProvider(AIProvider):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         model: str | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         """Non-streaming chat completion."""
         resolved_model = model or self._default_model
@@ -270,7 +272,7 @@ class OpenAIProvider(AIProvider):
 
         kwargs: dict[str, Any] = {
             "model": resolved_model,
-            "max_tokens": self._max_tokens,
+            "max_tokens": max_tokens or self._max_tokens,
             "messages": converted,
         }
         if tools:

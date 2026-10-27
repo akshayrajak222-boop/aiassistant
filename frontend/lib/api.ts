@@ -71,7 +71,9 @@ export async function apiRequest<T = any>(
 export async function* streamChatSSE(
   message: string,
   conversationId?: string,
-  model?: string
+  model?: string,
+  mode: "chat" | "voice" = "chat",
+  signal?: AbortSignal
 ): AsyncGenerator<{ type: string; data: any }, void, unknown> {
   const token = getToken();
   const url = `${API_BASE_URL}/api/chat/stream`;
@@ -86,10 +88,12 @@ export async function* streamChatSSE(
   const response = await fetch(url, {
     method: "POST",
     headers,
+    signal,
     body: JSON.stringify({
       message,
       conversation_id: conversationId,
       model,
+      mode,
     }),
   });
 
@@ -116,7 +120,7 @@ export async function* streamChatSSE(
     for (const chunk of lines) {
       if (!chunk.trim()) continue;
       const eventMatch = chunk.match(/^event:\s*(\w+)/m);
-      const dataMatch = chunk.match(/^data:\s*(.+)$/m);
+      const dataMatch = chunk.match(/^data:\s*([\s\S]+)$/m);
 
       if (eventMatch && dataMatch) {
         const eventType = eventMatch[1];

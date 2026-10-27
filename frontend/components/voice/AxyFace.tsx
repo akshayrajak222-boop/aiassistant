@@ -558,7 +558,7 @@ export const AxyFace: React.FC<AxyFaceProps> = ({ state, onClick, disabled }) =>
           : isSpeaking
           ? "Axy is speaking... (click core to interrupt)"
           : isProcessing
-          ? "Processing input through neural model..."
+          ? "Neural model synthesizing... (click core to cancel)"
           : "Click 3D Core to Speak"}
       </p>
     </div>

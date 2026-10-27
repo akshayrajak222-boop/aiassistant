@@ -124,6 +124,7 @@ class OllamaProvider(AIProvider):
         self._client = openai.AsyncOpenAI(
             api_key="ollama",  # dummy key – Ollama ignores it
             base_url=f"{self._base_url}/v1",
+            timeout=30.0,
         )
 
         self._native_tools = _model_supports_tools(self._default_model)
@@ -190,14 +191,18 @@ class OllamaProvider(AIProvider):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         model: str | None = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         """Stream a chat completion from Ollama."""
         resolved_model = model or self._default_model
         converted_messages, openai_tools = self._prepare_request(messages, tools, resolved_model)
 
+        # Cap tokens for responsive CPU inference (180 for 1B/small or explicit max_tokens)
+        effective_max_tokens = max_tokens or (180 if not _model_supports_tools(resolved_model) else 512)
         kwargs: dict[str, Any] = {
             "model": resolved_model,
             "messages": converted_messages,
+            "max_tokens": effective_max_tokens,
             "stream": True,
         }
         if openai_tools:
@@ -261,14 +266,17 @@ class OllamaProvider(AIProvider):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         model: str | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         """Non-streaming chat completion from Ollama."""
         resolved_model = model or self._default_model
         converted_messages, openai_tools = self._prepare_request(messages, tools, resolved_model)
 
+        effective_max_tokens = max_tokens or (180 if not _model_supports_tools(resolved_model) else 512)
         kwargs: dict[str, Any] = {
             "model": resolved_model,
             "messages": converted_messages,
+            "max_tokens": effective_max_tokens,
         }
         if openai_tools:
             kwargs["tools"] = openai_tools

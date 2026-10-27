@@ -30,6 +30,9 @@ export function useVoice({
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const currentTranscriptRef = useRef<string>("");
   const dispatchedRef = useRef<boolean>(false);
+  const activeUtteranceRef = useRef<any>(null);
+  const speechHeartbeatRef = useRef<any>(null);
+  const speechTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -171,12 +174,33 @@ export function useVoice({
       return;
     }
 
+    // Clean any prior speech
+    if (speechHeartbeatRef.current) clearInterval(speechHeartbeatRef.current);
+    if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
     window.speechSynthesis.cancel();
+
+    // Sanitize text for clear spoken audio (remove markdown, asterisks, brackets, hashes)
+    const cleanedText = text
+      .replace(/[*#_`~\[\]\(\)>]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!cleanedText) {
+      isSpeakingRef.current = false;
+      setState("idle");
+      if (onEnd) onEnd();
+      return;
+    }
+
     isSpeakingRef.current = true;
     setState("speaking");
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(cleanedText);
     utterance.rate = speed;
+
+    // Retain strong ref on both component ref and window to prevent Chromium GC bug
+    activeUtteranceRef.current = utterance;
+    (window as any).__axyActiveUtterance = utterance;
 
     if (voiceName) {
       const voices = window.speechSynthesis.getVoices();
@@ -184,8 +208,22 @@ export function useVoice({
       if (match) utterance.voice = match;
     }
 
-    utterance.onend = () => {
+    const cleanup = () => {
+      if (speechHeartbeatRef.current) {
+        clearInterval(speechHeartbeatRef.current);
+        speechHeartbeatRef.current = null;
+      }
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+        speechTimeoutRef.current = null;
+      }
+      activeUtteranceRef.current = null;
+      (window as any).__axyActiveUtterance = null;
       isSpeakingRef.current = false;
+    };
+
+    utterance.onend = () => {
+      cleanup();
       setState("idle");
       if (onEnd) onEnd();
       if (continuous) {
@@ -194,10 +232,32 @@ export function useVoice({
     };
 
     utterance.onerror = (err) => {
-      console.error("SpeechSynthesis error:", err);
-      isSpeakingRef.current = false;
+      console.warn("SpeechSynthesis utterance event:", err);
+      cleanup();
       setState("idle");
+      if (onEnd) onEnd();
     };
+
+    // Chromium SpeechSynthesis heartbeat workaround:
+    // Chromium pauses speech after ~10-15s unless poked via pause/resume
+    speechHeartbeatRef.current = setInterval(() => {
+      if (typeof window !== "undefined" && window.speechSynthesis.speaking) {
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }
+    }, 10000);
+
+    // Watchdog timer: If browser silently drops speech without firing onend, recover safely
+    const estimatedDurationMs = Math.max(5000, cleanedText.length * 85 + 3500);
+    speechTimeoutRef.current = setTimeout(() => {
+      if (isSpeakingRef.current) {
+        console.warn("SpeechSynthesis watchdog timeout: auto-recovering to idle state");
+        cleanup();
+        try { window.speechSynthesis.cancel(); } catch {}
+        setState("idle");
+        if (onEnd) onEnd();
+      }
+    }, estimatedDurationMs);
 
     window.speechSynthesis.speak(utterance);
   }
@@ -265,17 +325,28 @@ export function useVoice({
 
   function interruptSpeech() {
     if (typeof window !== "undefined") {
+      if (speechHeartbeatRef.current) {
+        clearInterval(speechHeartbeatRef.current);
+        speechHeartbeatRef.current = null;
+      }
+      if (speechTimeoutRef.current) {
+        clearTimeout(speechTimeoutRef.current);
+        speechTimeoutRef.current = null;
+      }
+      activeUtteranceRef.current = null;
+      (window as any).__axyActiveUtterance = null;
+
       if (audioPlayerRef.current) {
         audioPlayerRef.current.pause();
         audioPlayerRef.current.currentTime = 0;
         audioPlayerRef.current = null;
       }
       if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
+        try { window.speechSynthesis.cancel(); } catch {}
       }
       isSpeakingRef.current = false;
       setState("interrupted");
-      setTimeout(() => setState("idle"), 500);
+      setTimeout(() => setState("idle"), 400);
     }
   }
 

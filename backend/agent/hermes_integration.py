@@ -47,6 +47,7 @@ class HermesAgentService:
         task_id: str,
         model_override: str | None = None,
         context: dict[str, Any] | None = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """Run an autonomous agent turn with streaming events and tool execution."""
         yield AgentEvent(type="thinking", content="Processing your request...", metadata={"task_id": task_id})
@@ -67,7 +68,7 @@ class HermesAgentService:
         else:
             # Fall back to direct provider loop with full tool calling and streaming
             async for event in self._run_provider_loop(
-                user_message, conversation_history, system_prompt, user_id, task_id, model_override, context
+                user_message, conversation_history, system_prompt, user_id, task_id, model_override, context, max_tokens
             ):
                 yield event
 
@@ -80,6 +81,7 @@ class HermesAgentService:
         task_id: str,
         model_override: str | None,
         context: dict[str, Any] | None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """Execute task using NousResearch Hermes AIAgent."""
         from run_agent import AIAgent  # type: ignore
@@ -124,6 +126,7 @@ class HermesAgentService:
         task_id: str,
         model_override: str | None,
         context: dict[str, Any] | None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[AgentEvent]:
         """Direct cloud provider execution loop with streaming, tool calling, and prompt injection defense."""
         provider = get_provider()
@@ -169,6 +172,7 @@ class HermesAgentService:
                         messages=messages,
                         tools=tools_schema,
                         model=model_override,
+                        max_tokens=max_tokens,
                     )
                     async for chunk in stream:
                         full_assistant_reply.append(chunk)
@@ -178,6 +182,7 @@ class HermesAgentService:
                         messages=messages,
                         tools=tools_schema,
                         model=model_override,
+                        max_tokens=max_tokens,
                     )
                     full_assistant_reply.append(reply)
                     yield AgentEvent(type="text", content=reply)
